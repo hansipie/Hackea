@@ -465,7 +465,7 @@ for (const r of decodeRows(IKEA_ROWS)) {
 const SEATS_OUT = new Set<Kind>(["stool", "chair", "office", "junior", "highchair", "lounge", "swivel", "conference", "kidschair", "lounger"]);
 /** Product types left out by name: coat and clothes stands, and outdoor benches. */
 const TYPES_OUT = /^(hat and coat stand|clothes stand|bench with backrest, outdoor|bench, outdoor)/i;
-const inScope = (e: Entry) => e.archetype !== "bed" && e.archetype !== "sofa" && !(e.kind && SEATS_OUT.has(e.kind)) && !TYPES_OUT.test(e.variant);
+export const inScope = (e: Entry) => e.archetype !== "bed" && e.archetype !== "sofa" && !(e.kind && SEATS_OUT.has(e.kind)) && !TYPES_OUT.test(e.variant);
 
 /** Every product we can draw offline: hand-checked entries first, then the wider index, then IKEA's catalog. */
 export const PRODUCTS: Entry[] = [...BASE, ...IKEA].filter(inScope);

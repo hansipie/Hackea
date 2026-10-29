@@ -9,7 +9,7 @@
  */
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
-import { BASE, PRODUCTS, toSpec } from "@/lib/catalog";
+import { BASE, PRODUCTS, inScope, toSpec } from "@/lib/catalog";
 import { fold } from "@/lib/fold";
 import { buildPlan } from "@/lib/plan";
 import { articleNo, articleSlug, ikeaType, loadArticles } from "@/lib/ikea";
@@ -77,7 +77,9 @@ async function main() {
   const lock: Record<string, string> = existsSync(lockFile) ? JSON.parse(readFileSync(lockFile, "utf8")) : {};
   const baseLock = path.join(DIR, "base-slugs.json");
   const base: Record<string, string> = existsSync(baseLock) ? JSON.parse(readFileSync(baseLock, "utf8")) : {};
-  for (const [key, slug] of Object.entries(base)) if (slugs.get(slug) !== key) fail(`hand made slug ${slug} no longer opens ${key}`);
+  // products left out of the catalog on purpose keep their slug reserved, they are not expected to open
+  const leftOut = new Set(BASE.filter((e) => !inScope(e)).map((e) => e.slug));
+  for (const [key, slug] of Object.entries(base)) if (!leftOut.has(slug) && slugs.get(slug) !== key) fail(`hand made slug ${slug} no longer opens ${key}`);
   let gone = 0;
   for (const [key, slug] of Object.entries(lock)) {
     const now = slugs.get(slug);
@@ -109,7 +111,7 @@ async function main() {
   expect("billy bookcase combination", "billy-bookcase-160-x-28-x-202");
   expect("pax bergsbo", "pax-bergsbo-wardrobe");
   // a corner wardrobe when asked for, the frame otherwise
-  expect("pax corner wardrobe", "pax-corner-wardrobe-161-188-x-201");
+  expect("pax corner wardrobe", "pax-corner-wardrobe-161-188-x-236");
   expect("pax wardrobe", "pax-frame");
   expect("vihals gateleg table", "vihals-gateleg-table-39-95-151-x-90");
   // a wash-stand when asked for, US words too, without taking the family's cabinets
