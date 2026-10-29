@@ -463,8 +463,8 @@ for (const r of decodeRows(IKEA_ROWS)) {
 
 /** Hackea is about storage and tables: no beds, sofas or armchairs, and no chairs (stools and benches stay). Their slugs are left unused. */
 const SEATS_OUT = new Set<Kind>(["stool", "chair", "office", "junior", "highchair", "lounge", "swivel", "conference", "kidschair", "lounger"]);
-/** Two product types left out by name: hat and coat stands, and outdoor benches with a backrest. */
-const TYPES_OUT = /^(hat and coat stand|bench with backrest, outdoor)/i;
+/** Product types left out by name: coat and clothes stands, and outdoor benches. */
+const TYPES_OUT = /^(hat and coat stand|clothes stand|bench with backrest, outdoor|bench, outdoor)/i;
 const inScope = (e: Entry) => e.archetype !== "bed" && e.archetype !== "sofa" && !(e.kind && SEATS_OUT.has(e.kind)) && !TYPES_OUT.test(e.variant);
 
 /** Every product we can draw offline: hand-checked entries first, then the wider index, then IKEA's catalog. */
