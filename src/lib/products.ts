@@ -126,6 +126,8 @@ export type X = {
   uf?: number;
   ins?: number;
   blind?: number;
+  /** cm: an open niche at the right-hand end of a base cabinet, beside a door (KNOXHULT) */
+  ni?: number;
   u?: string;
   v?: string;
   cu?: number;
@@ -400,6 +402,8 @@ function fitted(kind: Kind, base: Omit<ProductSpec, "source">, w: number, h: num
     use,
     zones,
     ...(x.basin ? { basin: x.basin } : {}),
+    // a niche only goes beside doors
+    ...(x.ni && zones.every((q) => q.kind === "doors") ? { niche: x.ni } : {}),
     ...(["basin", "sink", "hob", "ovenhob"].includes(use) ? { rails: true } : {}),
     ...(hung && use === "basin" ? { hangFirst: true } : {}),
   };

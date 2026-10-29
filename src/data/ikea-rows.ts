@@ -191,6 +191,7 @@ BONDSKÄRET|coatstand|Hat and coat stand, 175 cm|45|175|45
 BORGEBY|coffee|Coffee table, 70 cm|70|45|70|round=1
 BORGEBY|side|Side table, 46 cm|46|50|46|round=1
 BRÄNNBOLL|side|Side table on castors, 69 × 39 cm|69|50|39
+BRIMNES|bed|Bed frame w storage and headboard, Standard Double, 135 × 190 cm|151|102|199|m=135,l=190
 BRIMNES|bed|Bed frame with storage, Standard Double, 135 × 190 cm|151|102|199|m=135,l=190
 BRIMNES|cabinet|Cabinet with doors, 78 × 95 cm|78|95|34
 BRIMNES|chest|Chest of 4 drawers, 78 × 46 × 124 cm|78|124|46|rows=4,knobs=none
@@ -251,8 +252,10 @@ EKET|cabinet|Cabinet, 35 × 25 × 35 cm|35|35|25|knobs=none
 EKET|chest|Cabinet with 2 drawers, 70 × 35 × 35 cm|70|35|35|rows=2
 EKET|nightstand|Cabinet with 2 drawers, 35 × 35 × 35 cm|35|35|35|rows=2
 EKET|wallcab|Wall cabinet with glass door, 35 × 25 × 35 cm|35|35|25|knobs=none,doors=1
+EKET|wallcab|Cabinet w door and 1 shelf, 35 × 35 × 70 cm|35|70|35|knobs=none,doors=1,shelves=1
 EKET|wallcab|Wall cb w 1 shlf/door, 35 × 35 × 70 cm|35|70|35|knobs=none,doors=1,shelves=1
 EKET|wallcab|Media shelf, 70 × 35 × 35 cm|70|35|35|knobs=none,doors=0,shelves=0,cat=Media shelf
+EKET|wallcab|Cabinet w 2 doors and 1 shelf, 70 × 35 × 70 cm|70|70|35|knobs=none,doors=2,shelves=1
 EKET|wallcab|Wall cb with 2 doors, 70 × 35 × 70 cm|70|70|35|knobs=none,doors=2
 EKET|wallshelf|Wall-mounted shelving unit, 35 × 25 × 35 cm|35|35|25
 EKET|wallshelf|Wall-mounted shelving unit, 35 × 35 × 35 cm|35|35|35
@@ -400,6 +403,7 @@ GLADSTAD|bed|Upholstered bed, 2 storage boxes, Twin, 97 × 191 cm|113|100|200|m=
 GLADSTAD|bed|Upholstered bed, 2 storage boxes, Standard Double, 135 × 190 cm|151|100|199|m=135,l=190,cat=Bed frame
 GLADSTAD|bed|Upholstered bed, 4 storage boxes, Standard Double, 135 × 190 cm|151|100|199|m=135,l=190,cat=Bed frame
 GLADSTAD|bed|Upholstered bed frame, Standard King, 150 × 200 cm|166|100|209|m=150
+GLAMBERGET|bed|Bed frame with storage and mattress, Standard Single, 90 × 190 cm|106|100|199|m=90,l=190
 GLAMBERGET|divider|Room divider, 150 × 150 cm|150|150|25
 GLAMBERGET|sliding|Wardrobe with 3 sliding doors, 117 × 63 × 150 cm|117|150|63|slides=3
 GLENN|stool|Bar stool, 66 cm|35|66|35
@@ -596,6 +600,7 @@ IDANÄS|sideboard|Sideboard, 124 × 50 × 95 cm|124|95|50
 IDANÄS|tv|TV bench, 162 × 40 × 63 cm|162|63|40
 IDANÄS|wardrobe|Open wardrobe, 59 × 211 cm|59|211|58|doors=0
 IDÅSEN|chest|Drawer unit on castors, 42 × 61 cm|42|61|48|rows=4
+IDÅSEN|mixed|Cabinet with doors and drawers, 80 × 47 × 119 cm|80|119|47|rows=2,doors=2
 IKEA PS|cabinet|Cabinet, 119 × 63 cm|119|63|40
 IKEA PS 2026|armchair|Easy chair|75|90|80
 IKEA PS 2026|bench|Bench, 127 cm|127|45|38
@@ -742,8 +747,12 @@ KLIPPUGGLA|bed|Bed frame with storage, 90 × 200 cm|106|100|209|m=90
 KLIPPUGGLA|bed|Bed frame with storage, Twin, 97 × 191 cm|113|100|200|m=97,l=191,us=1
 KNARREVIK|nightstand|Bedside table, 37 × 28 × 45 cm|37|45|28|rows=1
 KNOXHULT|cornercab|Corner base cabinet, 100 × 91 cm|100|91|61|shelves=1,blind=50
+KNOXHULT|kitchen|Base cabinet with drawers, 40 cm|40|91|61|z=r3
 KNOXHULT|kitchen|High cabinet with door, 60 × 31 × 153 cm|60|153|31|doors=1
 KNOXHULT|kitchen|High cabinet with doors, 60 × 31 × 228 cm|60|228|31
+KNOXHULT|kitchen|Base cabinet with door and niche, 120 × 61 × 91 cm|120|91|61|knobs=none,z=d1,ni=60
+KNOXHULT|mixed|Base cabinet with doors and drawer, 120 cm|120|91|61|rows=1,doors=2,dtop=1
+KNOXHULT|mixed|Base cabinet with doors and drawer, 180 cm|180|91|61|rows=1,doors=2,dtop=1
 KNOXHULT|wallcab|Wall cabinet with door, 40 × 75 cm|40|75|35|doors=1
 KNOXHULT|wallcab|Wall cabinet with door, 60 × 60 cm|60|60|35|doors=1
 KNOXHULT|wallcab|Wall cabinet with door, 60 × 75 cm|60|75|35|doors=1
@@ -1163,7 +1172,9 @@ NISSAFORS|trolley|Trolley, 50.5 × 30 × 83 cm|51|83|30
 NORDKISA|desk|Dressing table, 76 × 47 cm|76|74|47
 NORDKISA|nightstand|Bedside table, 40 × 40 cm|40|55|40|rows=1
 NORDKROKEN|swivel|Rocking and swivel armchair|78|98|80|rock=1
+NORDLI|bed|Bed frame with storage and mattress, Standard Double, 135 × 190 cm|151|64|199|m=135,l=190
 NORDLI|bed|Bed frame with storage, 140 × 200 cm|156|64|209|m=140
+NORDLI|bed|Bed frame with storage and mattress, Standard King, 150 × 200 cm|166|64|209|m=150
 NORDLI|bed|Bed frame with storage, Queen, 152 × 203 cm|168|64|212|m=152,l=203,us=1
 NORDLI|chest|Modular chest of drawers, 40 × 45 cm|40|45|48|rows=3,knobs=none
 NORDLI|chest|Modular chest of 3 drawers, 40 × 68 cm|40|68|48|rows=3,knobs=none
@@ -1346,6 +1357,10 @@ PLATSA|cabrow|Wardrobe with 4 doors, 240 × 57 × 191 cm|240|191|57|doors=2,n=2,
 PLATSA|cabrow|Wardrobe w 6 doors, 240 × 57 × 221 cm|240|221|57|doors=2,n=3,of=wardrobe
 PLATSA|cabrow|Wardrobe w 6 doors, 240 × 57 × 231 cm|240|231|57|doors=2,n=3,of=wardrobe
 PLATSA|cabrow|Wardrobe w 6 doors, 300 × 42 × 241 cm|300|241|42|doors=2,n=3,of=wardrobe
+PLATSA|mixed|Cabinet with doors and drawers, 180 × 57 × 103 cm|180|103|57|rows=2,doors=2
+PLATSA|mixed|Wardrobe with 2 doors+2 drawers, 180 × 57 × 123 cm|180|123|57|rows=2,doors=2,rail=1
+PLATSA|mixed|Cabinet with doors and drawers, 180 × 57 × 133 cm|180|133|57|rows=2,doors=2
+PLATSA|mixed|Wardrobe with 2 doors+3 drawers, 300 × 57 × 241 cm|300|241|57|rows=3,doors=2,rail=1
 PLATSA|nightstand|Chest of 2 drawers, 60 × 57 × 53 cm|60|53|57|rows=2
 PLATSA|nightstand|Bedside table, 60 × 42 × 83 cm|60|83|42|rows=2
 PLATSA|open|Open shelving unit, 60 × 40 × 40 cm|60|40|40
@@ -1517,6 +1532,7 @@ SKRUVBY|side|Side table, 40 × 32 cm|40|50|32
 SKRUVBY|sideboard|Sideboard, 120 × 38 × 90 cm|120|90|38
 SKRUVBY|tv|TV bench, 156 × 38 × 60 cm|156|60|38
 SKRUVSTA|office|Swivel chair|60|105|64|arms=none
+SLÄKT|bed|Bed frame w storage+slatted bedbase, 90 × 200 cm|106|100|209|m=90
 SLÄKT|bed|Bed frame with 3 storage boxes, 90 × 200 cm|106|100|209|m=90
 SLÄKT|bed|Bed frame with slatted bed base, 90 × 200 cm|106|100|209|m=90
 SLÄKT|bed|Bed frame with storage, 90 × 200 cm|106|100|209|m=90

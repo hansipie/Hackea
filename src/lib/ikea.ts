@@ -23,7 +23,7 @@ export interface IkeaRow {
   slug?: string;
 }
 
-const X_KEYS = ["rows", "cols", "knobs", "plinth", "doors", "shelves", "c", "m", "l", "f", "seats", "arms", "legs", "attach", "shelf", "min", "round", "seatH", "chaise", "corner", "open", "sd", "drawer", "leaves", "leaf", "under", "mats", "dtop", "rail", "slides", "n", "of", "hinge", "use", "z", "basin", "hung", "uf", "ins", "blind", "inner", "u", "v", "cu", "rock", "cat", "cast", "mods", "dr", "foot", "st", "low", "box", "t", "mirror", "up", "us"] as const;
+const X_KEYS = ["rows", "cols", "knobs", "plinth", "doors", "shelves", "c", "m", "l", "f", "seats", "arms", "legs", "attach", "shelf", "min", "round", "seatH", "chaise", "corner", "open", "sd", "drawer", "leaves", "leaf", "under", "mats", "dtop", "rail", "slides", "n", "of", "hinge", "use", "z", "basin", "hung", "uf", "ins", "blind", "ni", "inner", "u", "v", "cu", "rock", "cat", "cast", "mods", "dr", "foot", "st", "low", "box", "t", "mirror", "up", "us"] as const;
 const FLAGS = new Set<string>(["plinth", "shelf", "round", "open", "drawer", "dtop", "rail", "hinge", "hung", "rock", "cast", "foot", "mirror", "us"]);
 const WORDS = new Set<string>(["knobs", "arms", "legs", "attach", "chaise", "corner", "under", "of", "use", "z", "inner", "u", "v", "cat"]);
 

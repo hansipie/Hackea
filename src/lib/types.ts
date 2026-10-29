@@ -125,6 +125,7 @@ export interface FitParams {
   use: FitUse;
   zones: FitZone[]; // from the bottom up
   basin?: number; // cm: a wash-basin that comes in the box, this thick; size includes it, and it goes on top last
+  niche?: number; // cm: an open niche with no front at the right-hand end, split off by a divider; the doors cover the rest
   rails?: boolean; // two rails across the top instead of a top panel
   hangFirst?: boolean; // hung on the wall before the fronts go on (wash-stands)
 }

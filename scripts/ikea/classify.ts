@@ -177,6 +177,8 @@ const DAYBED_SIZE: Record<string, [number, number, number]> = { HEMNES: [210, 83
 const BLIND_DOOR: Record<string, number> = { METOD: 60, KNOXHULT: 50 };
 /** Corner base cabinets IKEA measures wide by high, with the worktop on top, and how deep they are. */
 const CORNER_WH: Record<string, number> = { KNOXHULT: 61 };
+/** Base cabinets IKEA gives only the width of: how high and how deep the family's are, in cm, from its sized ones. */
+const BASE_HD: Record<string, [number, number]> = { KNOXHULT: [91, 61] };
 /** Modular chests: how wide a column is and how tall a drawer slot is, in cm (a NORDLI chest is 7 cm of top and plinth). */
 const MODULE: Record<string, [number, number, number]> = { NORDLI: [40, 23, 7] };
 /** Shelving units with a cabinet at the bottom: how high the cabinet is, in cm. */
@@ -285,8 +287,11 @@ const RULES: Rule[] = [
   [/^top cabinet for fridge\/freezer$/, () => ({ kind: "appliance", x: { use: "fridge", z: "d1", hung: true } })],
   // cabinets with doors and drawers: the drawers under the doors, or one drawer above the door of a kitchen base cabinet
   [/^(glass-door cabinet with|high cabinet w gls-drs and) (\d) drawers?$/, (m) => ({ kind: "mixed", x: { rows: Number(m[2]) } })],
-  [/^wardrobe with (\d) doors and (\d) drawers$/, (m) => (Number(m[1]) > 2 ? "wardrobe with more than 2 doors and drawers" : { kind: "mixed", x: { doors: Number(m[1]) as 1 | 2, rows: Number(m[2]), rail: true } })],
+  [/^wardrobe with (\d) doors(?: and |\+)(\d) drawers$/, (m) => (Number(m[1]) > 2 ? "wardrobe with more than 2 doors and drawers" : { kind: "mixed", x: { doors: Number(m[1]) as 1 | 2, rows: Number(m[2]), rail: true } })],
   [/^base cabinet with drawer\/(2 )?doors?$/, (m) => ({ kind: "mixed", x: { doors: m[1] ? 2 : 1, rows: 1, dtop: true } })],
+  [/^base cabinet with doors and drawer$/, (_m, c) => ({ kind: "mixed", x: { doors: doorsFor(c) as 1 | 2, rows: 1, dtop: true } })],
+  // KNOXHULT's narrow drawer cabinet has three drawers
+  [/^base cabinet with drawers$/, () => ({ kind: "kitchen", x: { z: "r3" } })],
   // kitchen corner cabinets: an L with a door that folds at the inner corner, or a long blind corner with a door at its
   // open end, a drawer over it in some (the carousels, shelves and fittings sold alone stay skipped)
   [/^corner (base|wall) cab(?:inet)?(?: (?:with|w) (shelf|shelves|carousel|pull-out fitting|drawer and p-out|drawer and shelf)(?:\/glass dr)?)?$/, (m, c) => {
@@ -321,6 +326,13 @@ const RULES: Rule[] = [
   [/^kitchen$/, () => "set or combination"],
   // a hat and coat stand is one piece, whatever its name says
   [/^(hat and coat stand|clothes stand|coat stand)$/, () => ({ kind: "coatstand" })],
+  // single pieces named with "and" or "+": storage bed frames with their mattress or headboard, an EKET cabinet with a
+  // shelf, and cabinets with doors over drawers (their drawers aren't counted, so two rows)
+  [/^bed frame (?:with storage and mattress|w storage and headboard|w storage\+slatted bedbase)$/, () => ({ kind: "bed" })],
+  [/^cabinet w (?:(\d) )?doors? and (\d) shelf$/, (m) => ({ kind: "wallcab", x: { doors: Number(m[1]) > 1 ? 2 : 1, shelves: Number(m[2]) } })],
+  // KNOXHULT's 120 cm base cabinet: a door over the left half, an open niche on the right (IKEA's own drawing)
+  [/^base cabinet with door and niche$/, (_m, c) => ({ kind: "kitchen", x: { z: "d1", ni: Math.round((c.sz.n[0] ?? 120) / 2), knobs: "none" } })],
+  [/^cabinet with doors and drawers$/, (_m, c) => ({ kind: "mixed", x: { doors: doorsFor(c) as 1 | 2, rows: 2 } })],
   // things that are several products, or only part of one
   // an armchair that rocks as it swivels is one chair, whatever its name says
   [/^rocking and swivel armchair$/, () => ({ kind: "swivel", x: { rock: true } })],
@@ -702,7 +714,10 @@ export function classify(f: Fact, hints: Hints): Verdict {
       // bedside tables are measured from above, like tables
       else if (kind === "nightstand" && /bedside|nightstand/.test(t)) set(v[0], hint?.kind === kind ? hint.h : 55, v[1]);
       else set(v[0], v[1]);
-    } else if (v.length === 1) return { skip: "upright piece with one size" };
+    } else if (v.length === 1) {
+      if (/^base/.test(t) && BASE_HD[family]) set(v[0], ...BASE_HD[family]);
+      else return { skip: "upright piece with one size" };
+    }
     else if (hint?.kind === kind) set(hint.w, hint.h, hint.d);
     else if (kind === "clothesrack" && RACK_SIZE[family]) set(...RACK_SIZE[family]);
     else if (TYPICAL[t]) [w, h, d] = TYPICAL[t];

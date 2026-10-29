@@ -54,7 +54,9 @@ export function buildFitted(b: PlanBuilder, s: ProductSpec) {
   const fit = c.fit!;
   const basinH = fit.basin ? clamp(fit.basin, 3, 20) * 10 : 0;
   // with a basin in the box the size is the whole thing: the cabinet is a little narrower and shallower than the basin
-  const W = (s.size.w - (basinH ? 2 : 0)) * 10, D = (s.size.d - (basinH ? 1 : 0)) * 10;
+  // an open niche beside the doors has its own side panel: the cabinet itself is what's left, doors and all
+  const ni = fit.niche ? clamp(fit.niche, 20, s.size.w - 20) * 10 : 0;
+  const W = (s.size.w - (basinH ? 2 : 0)) * 10 - ni, D = (s.size.d - (basinH ? 1 : 0)) * 10;
   const H = s.size.h * 10 - basinH;
   const t = clamp(c.thickness ?? 18, 12, 25);
   const wall = !!c.wall;
@@ -96,7 +98,7 @@ export function buildFitted(b: PlanBuilder, s: ProductSpec) {
     i === bands.length - 1 ? H - t : shelfAt(i) ? bands[i].hi - t / 2 : bands[i].hi,
   ];
 
-  const f = new FrameKit(b, { W, H, D, t, base, plinth, fixed, back: true, pinRows: false, lying, rails: !!fit.rails, names: { fixed: "Fixed shelf" } });
+  const f = new FrameKit(b, { W, H, D, t, base, plinth, fixed, back: true, pinRows: false, lying, rails: !!fit.rails, noTop: !!ni, lowRight: ni ? t : 0, names: { fixed: "Fixed shelf" } });
   const fz = D / 2 + t / 2; // fronts sit on the front edge of the carcass
   const r1 = (n: number) => Math.round(n * 10) / 10;
   const types = new Map<string, string>();
@@ -155,6 +157,17 @@ export function buildFitted(b: PlanBuilder, s: ProductSpec) {
       }
     } else if (bd.z.kind === "front") fronts.push(b.place(typeOf("Fixed front", [W - 4, dh, t]), [0, bd.lo + 2 + dh / 2, fz]));
   }
+
+  /* ---------- the niche: a side panel, two long rails lying across the top, and a rail at the back that holds the panel ---------- */
+  // no top panel: the divider stops a rail's thickness short, and the long rails lie flat across the whole top, front and back
+  const gap = ni - t; // clear width between the divider and the niche's side panel
+  const nPanel = ni ? b.place(b.partItem(f.sides[0]).ref, [W / 2 + ni - t / 2, H / 2, 0], [0, Math.PI, 0]) : undefined;
+  const nRail = ni ? b.place(b.part("Support rail", [gap, 120, t]), [W / 2 + gap / 2, Math.round(H * 0.47), -D / 2 + t / 2 + 2]) : undefined;
+  const longL = W + ni - 2 * t;
+  const longT = ni ? b.part("Long rail", [longL, t, 100]) : undefined;
+  const zLong = D / 2 - 50;
+  const nFront = longT ? b.place(longT, [ni / 2, H - t / 2, zLong]) : undefined;
+  const nBack = longT ? b.place(longT, [ni / 2, H - t / 2, -zLong]) : undefined;
 
   /* ---------- shelves: open bands, and behind doors ---------- */
   const shelfYs: number[] = [];
@@ -220,6 +233,62 @@ export function buildFitted(b: PlanBuilder, s: ProductSpec) {
   f.plinthStep();
   f.backSteps();
   f.standUp();
+
+  if (nPanel && nRail && nFront && nBack) {
+    const yRail = b.partItem(nRail).final.pos[1], zRail = b.partItem(nRail).final.pos[2];
+    const rails = [nFront, nBack];
+    const zs = [zLong, -zLong];
+    b.step(
+      {
+        title: "Lay the two long rails across the top",
+        detail: "One at the front and one at the back, flat on top of the left side and the divider. Bolt each one through the left side.",
+        tools: ["allen"],
+        kind: "screws",
+        people: 2,
+        warnings: ["two"],
+      },
+      () => {
+        b.stagger(0.3);
+        for (const k of rails) b.add(k, [0, 360, 0]);
+        b.then(0.1);
+        const list: FitOpts[] = [];
+        rails.forEach((k, i) => { for (const dz of [-24, 24]) list.push({ on: f.sides[0], at: [-W / 2 + t, H - t / 2, zs[i] + dz] as Vec3, dir: [1, 0, 0] as Vec3, mate: k }); });
+        b.fits(HW.boltL, list, 0.1);
+      },
+    );
+    b.step(
+      {
+        title: "Lock the rails to the divider",
+        detail: "Turn each cam lock a half turn until it clicks onto the bolt in the divider's top edge.",
+        tools: ["screwdriver"],
+        kind: "cams",
+      },
+      () => {
+        const bolts: FitOpts[] = rails.map((k, i) => ({ on: f.sides[1], at: [W / 2 - t / 2, H - t, zs[i]] as Vec3, dir: [0, -1, 0] as Vec3, mate: k }));
+        b.fits(HW.camScrew, bolts, 0.1);
+        b.then(0.1);
+        b.fits(HW.cam, rails.map((k, i) => ({ on: k, at: [W / 2 - t / 2, H - t, zs[i]] as Vec3, dir: [0, 1, 0] as Vec3 })), 0.1);
+      },
+    );
+    b.step(
+      {
+        title: "Fit the support rail and the niche side panel",
+        detail: "The support rail goes against the back between the divider and the panel, level with the middle of the niche. Bolt through the panel into the ends of both long rails.",
+        tools: ["allen"],
+        kind: "screws",
+        people: H > 800 ? 2 : 1,
+        warnings: H > 800 ? ["two"] : [],
+      },
+      () => {
+        b.add(nRail, [0, 0, 420]);
+        b.then(0.1);
+        b.add(nPanel, [420, 0, 0]);
+        b.then(0.1);
+        b.fits(HW.boltL, rails.map((k, i) => ({ on: nPanel, at: [W / 2 + ni - t, H - t / 2, zs[i]] as Vec3, dir: [-1, 0, 0] as Vec3, mate: k })), 0.1);
+        b.fits(HW.dowel, [{ on: nPanel, at: [W / 2 + ni - t, yRail, zRail] as Vec3, dir: [-1, 0, 0] as Vec3, mate: nRail }], 0.1);
+      },
+    );
+  }
 
   if (shelfYs.length) {
     const shT = b.part("Shelf", [W - 2 * t - 3, t, D - 26]);
@@ -424,7 +493,7 @@ export function buildFitted(b: PlanBuilder, s: ProductSpec) {
   }
 
   if (wall && !fit.hangFirst) f.hang();
-  else if (!wall && H >= 800) f.anchor();
+  else if (!wall && H >= 800) f.anchor(nBack ?? f.top);
 
   /* ---------- the basin last, or what comes next ---------- */
   if (basin) {
@@ -443,5 +512,17 @@ export function buildFitted(b: PlanBuilder, s: ProductSpec) {
     const [title, detail] = READY[fit.use];
     const apron = bands.some((bd) => bd.z.kind === "apron");
     b.step({ title, detail: apron ? "The sink's own front fills the space at the top. " + detail : detail, kind: "general" }, () => {});
+  }
+
+  // the cabinet was built around the middle, with the niche to its right: put the middle of the whole piece back
+  if (ni) {
+    const shift = (p: Vec3): Vec3 => [p[0] - ni / 2, p[1], p[2]];
+    for (const it of b.items) {
+      if (it.kind === "part") {
+        const old = it.final.pos;
+        it.final = { pos: shift(old), rot: it.final.rot };
+        for (const st of it.states) if (st.scene === "main") st.pos = st.pos === old ? it.final.pos : shift(st.pos);
+      } else if (it.kind === "hw" && !it.parent && it.scene === "main") it.pos = shift(it.pos);
+    }
   }
 }

@@ -204,6 +204,7 @@ borgeby-coffee-table-70|70389356 30500355
 borgeby-side-table-46|40619882 80619880
 brannboll-side-table-on-castors-69-x-39|00586360
 brimnes-bed-frame-storage-standard-double-135-x|29006940 09006936 49031651 09031653
+brimnes-bed-frame-w-storage-and-headboard-standa|59124616 19124618 39157467 19157468
 brimnes-bedside-table-39-x-41-x-53|10234942
 brimnes-bookcase-60-x-190|40301223 90301225
 brimnes-cabinet-doors-78-x-95|00300664 50300666 80300660 40300662
@@ -271,6 +272,8 @@ eket-cabinet-2-drawers-35-x-35-x-35|30428920 20574592 30428915
 eket-cabinet-2-drawers-70-x-35-x-35|00333947 80574594 80344923
 eket-cabinet-35-x-25-x-35|70332124 40595522 30530574 40334558 90428842 50595526 00595524
 eket-cabinet-combination-70-x-70|10574583 60333954 00334536 89285820 09581184 19285833 89435221 69435222
+eket-cabinet-w-2-doors-and-1-shelf-70-x-35-x-70|20344921 20574587 20333951
+eket-cabinet-w-door-and-1-shelf-35-x-35-x-70|50344929 00574588 90333938
 eket-media-shelf-70-x-35-x-35|00576479 90582027 30582025
 eket-wall-cabinet-glass-door-35-x-25-x-35|29533012 29336356 89602125 99336353 69602126 49602127 49336341
 eket-wall-cb-2-doors-70-x-35-x-70|49581182
@@ -423,6 +426,7 @@ gladstad-upholstered-bed-2-storage-boxes-twin-97|49406763
 gladstad-upholstered-bed-4-storage-boxes-standar|49407022 29407023
 gladstad-upholstered-bed-frame-standard-king-150|40490469 60490468
 gladstad-upholstered-bed-frame-twin-97-x-191|00490471
+glamberget-bed-frame-storage-and-mattress-standa|89568517 49568519 69568518 09568521 89568522 69568523 49568524
 glamberget-room-divider-150-x-150|90564735
 glamberget-wardrobe-3-sliding-doors-117-x-63-x-1|20564512
 glenn-bar-stool-66|60131734
@@ -634,6 +638,7 @@ idanas-upholstered-bed-frame-twin-97-x-191|90594940 10459677 69386575 59567289 1
 idanas-upholstered-ottoman-bed-standard-king-150|40590949 10588090
 idanas-upholstered-storage-bed-standard-king-150|20447194 60447192 70588105 00588104
 idanas-wardrobe-121-x-211|60458835
+idasen-cabinet-doors-and-drawers-80-x-47-x-119|90496398 30320726
 idasen-desk-160-x-80|89281030 89280969
 idasen-drawer-unit-on-castors-42-x-61|10320727 50397913
 ikea-ps-2026-3-seat-sofa-bed|70620351
@@ -792,6 +797,10 @@ klippan-2-seat-sofa|49625204 89246862 89561667 90399316
 klippuggla-bed-frame-storage-90-x-200|19627346 09627827
 klippuggla-bed-frame-storage-twin-97-x-191|29627826 69627829
 knarrevik-bedside-table-37-x-28-x-45|00576318 20569977
+knoxhult-base-cabinet-door-and-niche-120-x-61-x|80604242 60604078 60604243 40604244
+knoxhult-base-cabinet-doors-and-drawer-120|30603971 30326790 40588786 40603980
+knoxhult-base-cabinet-doors-and-drawer-180|70326788 20588787 90603973 20603981
+knoxhult-base-cabinet-drawers-40|90326787 60588785 50603970 60603979
 knoxhult-corner-base-cabinet-100-x-91|00486129 70603974 00588788 30603985
 knoxhult-high-cabinet-door-60-x-31-x-153|50604352 40604079 90604246 10604354
 knoxhult-high-cabinet-doors-60-x-31-x-228|19581409 59581412 99581410 39581408
@@ -1231,6 +1240,9 @@ nordkisa-bedside-table-40-x-40|60447677
 nordkisa-dressing-table-76-x-47|20439472
 nordkroken-rocking-and-swivel-armchair|79616953 49616940
 nordli-bed-frame-storage-140-x-200|40349847 00349849
+nordli-bed-frame-storage-160-x-200|69241422 09241420
+nordli-bed-frame-storage-and-mattress-standard-d|69544891 09544889 99544917 79544918 79544895 99544922 59544919
+nordli-bed-frame-storage-and-mattress-standard-k|59552933 99544984 69544985 39552934 49544986 09552935 89552936
 nordli-bed-frame-storage-queen-152-x-203|50372781 00372788
 nordli-chest-12-drawers-120-x-145|99239489
 nordli-chest-12-drawers-160-x-145|79239490
@@ -1403,6 +1415,8 @@ pinntorp-table-125-x-75|20635171 30529467
 pinntorp-table-85|30637834
 piplarka-desk-80-x-63|20579943
 platsa-bedside-table-60-x-42-x-83|39585802
+platsa-cabinet-doors-and-drawers-180-x-57-x-103|19637524 69623218
+platsa-cabinet-doors-and-drawers-180-x-57-x-133|79614303 99615448
 platsa-chest-2-drawers-60-x-57-x-53|09277211 79487852 39555701
 platsa-frame-60-x-55-x-120|50330946 30330947
 platsa-frame-60-x-55-x-180|50330951 90330954
@@ -1416,6 +1430,8 @@ platsa-open-shoe-storage-unit-80-x-40-x-60|00452544
 platsa-shoe-cabinet-storage-120-x-42-x-123|59615431
 platsa-wardrobe-2-doors-120-x-57-x-181|69615341
 platsa-wardrobe-2-doors-120-x-57-x-191|49624916
+platsa-wardrobe-2-doors-2-drawers-180-x-57-x-123|29624979
+platsa-wardrobe-2-doors-3-drawers-300-x-57-x-241|19625205
 platsa-wardrobe-2-doors-60-x-57-x-251|99623735
 platsa-wardrobe-3-doors-180-x-42-x-191|69613530 69615510
 platsa-wardrobe-3-doors-180-x-57-x-133|39624969
@@ -1596,6 +1612,7 @@ slakt-bed-frame-90-x-200|99608419 59612041
 slakt-bed-frame-slatted-bed-base-90-x-200|79227755
 slakt-bed-frame-storage-90-x-200|09612048
 slakt-bed-frame-storage-twin-97-x-191|49612051 99608424 59227775 19612043
+slakt-bed-frame-w-storage-slatted-bedbase-90-x-2|29291956
 slakt-ext-bed-frame-slatted-bed-base-97-x-190|69326548
 slatorp-2-seat-sofa|60594381 70594366 90594394
 slatorp-3-seat-sofa|70594390 10594369 50594386

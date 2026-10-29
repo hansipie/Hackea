@@ -20,6 +20,10 @@ export interface FrameOpts {
   names?: { side?: string; top?: string; bottom?: string; fixed?: string };
   /** two rails across the top, front and back, instead of a top panel: room for a basin, a sink or a hob */
   rails?: boolean;
+  /** no top at all: whatever lies across the top is added by the caller */
+  noTop?: boolean;
+  /** mm: the right-hand panel is a divider, this much lower than the left side (the top lies across it) */
+  lowRight?: number;
 }
 
 /** A panel joined between the sides. Rails are narrow, so they say where their dowels and bolts go. */
@@ -71,10 +75,14 @@ export class FrameKit {
     const { W, H, D, t, base } = o;
     const sideT = b.part(o.names?.side ?? "Side panel", [t, H, D]);
     const sx = W / 2 - t / 2;
-    this.sides = [b.place(sideT, [-sx, H / 2, 0]), b.place(sideT, [sx, H / 2, 0], [0, Math.PI, 0])];
+    const low = o.lowRight ?? 0;
+    const rightT = low ? b.part("Divider", [t, H - low, D]) : sideT;
+    this.sides = [b.place(sideT, [-sx, H / 2, 0]), b.place(rightT, [sx, (H - low) / 2, 0], [0, Math.PI, 0])];
 
     const iw = W - 2 * t;
-    if (o.rails) {
+    if (o.noTop) {
+      this.top = "";
+    } else if (o.rails) {
       const rd = 100;
       const railT = b.part(o.names?.top ?? "Top rail", [iw, t, rd]);
       const zr = -D / 2 + rd / 2, zf = D / 2 - rd / 2;
@@ -88,7 +96,7 @@ export class FrameKit {
     }
     const botT = b.part(o.names?.bottom ?? "Bottom panel", [iw, t, D]);
     this.bottom = b.place(botT, [0, base + t / 2, 0]);
-    if (!o.rails) this.joints.push({ key: this.top, y: H - t / 2, camDir: 1, face: H - t });
+    if (!o.rails && !o.noTop) this.joints.push({ key: this.top, y: H - t / 2, camDir: 1, face: H - t });
     this.joints.push({ key: this.bottom, y: base + t / 2, camDir: -1, face: base + t });
     if (o.fixed.length) {
       const fxT = b.part(o.names?.fixed ?? "Fixed shelf", [iw, t, D - 4]);
