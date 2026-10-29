@@ -9,7 +9,7 @@ import { buildPlan } from "@/lib/plan";
 import type { StageMode } from "@/engine/stage";
 import { IArrowRight } from "../art/Icons";
 
-const SHOW = ["kallax-2x2", "malm-3-drawers", "bissa-shoe-cabinet-2-compartments", "lack-coffee-table", "kivik-3-seat-sofa", "billy-80x202"];
+const SHOW = ["kallax-2x2", "malm-3-drawers", "bissa-shoe-cabinet-2-compartments", "lack-coffee-table", "billy-80x202"];
 const HOLD = 3200;
 
 /** A manual page that keeps building furniture by itself. Tabs pick what it builds. */

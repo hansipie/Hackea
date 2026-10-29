@@ -21,7 +21,7 @@ const QUICK = [
   { slug: "kallax-2x2", label: "KALLAX" },
   { slug: "bissa-shoe-cabinet-2-compartments", label: "BISSA" },
   { slug: "malm-3-drawers", label: "MALM" },
-  { slug: "poang-armchair", label: "POÄNG" },
+  { slug: "hemnes-nightstand-2-drawers", label: "HEMNES" },
   { slug: "billy-80x202", label: "BILLY" },
 ];
 

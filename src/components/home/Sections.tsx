@@ -26,9 +26,7 @@ export const CATS: { id: string; label: string; kinds?: Kind[]; tag?: string }[]
   },
   { id: "tables", label: "Tables", kinds: ["dining", "coffee", "side", "bar", "console", "trolley", "dropleaf", "gateleg", "conftable"] },
   { id: "desks", label: "Desks", kinds: ["desk", "cornerdesk"] },
-  { id: "beds", label: "Beds", kinds: ["bed", "daybed", "bunk", "loft", "cot"] },
-  { id: "seating", label: "Chairs", kinds: ["chair", "stool", "bench", "backbench", "office", "conference", "highchair", "junior", "lounge"] },
-  { id: "sofas", label: "Sofas", kinds: ["sofa", "armchair", "corner", "usofa", "section", "chaise", "swivel", "lounger"] },
+  { id: "seating", label: "Benches", kinds: ["bench", "backbench"] },
   { id: "kids", label: "Kids", kinds: ["kidstable", "kidschair", "junior", "highchair", "cot", "changing"], tag: "kids" },
   { id: "outdoor", label: "Outdoor", tag: "outdoor" },
 ];

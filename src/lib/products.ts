@@ -761,12 +761,6 @@ export const KIND_LABELS: { kind: Kind; label: string }[] = [
   { kind: "desk", label: "Desk" },
   { kind: "dining", label: "Dining table" },
   { kind: "coffee", label: "Coffee table" },
-  { kind: "bed", label: "Bed frame" },
-  { kind: "sofa", label: "Sofa" },
-  { kind: "corner", label: "Corner sofa" },
-  { kind: "chair", label: "Chair" },
-  { kind: "office", label: "Office chair" },
-  { kind: "stool", label: "Stool" },
   { kind: "bench", label: "Bench" },
 ];
 
