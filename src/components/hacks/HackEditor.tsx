@@ -9,6 +9,7 @@ import { FIX_KINDS, LIMITS, MATERIALS, PART_ID, POSES, TOOLS, WARNINGS, boundsMm
 import * as E from "@/lib/hacks/edit";
 import { exportHack } from "@/lib/hacks/sanitize";
 import { exportBackup, loadHack, saveHack, shareLink } from "@/lib/hacks/store";
+import { libraryParts } from "@/lib/hacks/library";
 import { searchCatalog } from "@/lib/search";
 import StageView from "../StageView";
 import { TOOL_INFO } from "../art/Tools";
@@ -133,7 +134,7 @@ export default function HackEditor({ id, initial, repaired, savedExport }: { id:
     <div className="hx-editor">
       <div className="hx-top">
         <Link href="/hacks/new" className="btn link inline hx-back">
-          <IArrowLeft size={16} /> My hacks
+          <IArrowLeft size={16} /> My builds
         </Link>
         {unsaved && repaired && (
           <div className="callout warn hx-repair" role="region" aria-label="Repaired hack">
@@ -283,7 +284,7 @@ export default function HackEditor({ id, initial, repaired, savedExport }: { id:
 
           <section className="hx-sec" id="hx-about" aria-labelledby="hx-about-h">
             <h2 id="hx-about-h" className="hx-h2">
-              About the hack
+              About your build
             </h2>
             <Text label="Name" value={draft.name} max={LIMITS.name} required onChange={(name) => set({ name })} placeholder="KALLAX bench" />
             <Text label="One line under the name" value={draft.variant} max={LIMITS.variant} onChange={(variant) => set({ variant })} placeholder="Laid down on legs, 147 cm" />
@@ -302,7 +303,7 @@ export default function HackEditor({ id, initial, repaired, savedExport }: { id:
             <h2 id="hx-parts-h" className="hx-h2">
               Parts <span className="hx-count">{draft.parts.length}</span>
             </h2>
-            <p className="hx-hint">Boxes and rods as they sit in the finished piece, in millimetres: x runs left to right, y up from the floor, z from the back to the front. Parts that touch get their fittings where they meet.</p>
+            <p className="hx-hint">Every part of what you are making, as it sits when it is finished, in millimetres: x runs left to right, y up from the floor, z from the back to the front. Pieces from the library arrive as their parts; change, move or add any of them.</p>
             <ul className="hx-list">
               {draft.parts.map((p) => (
                 <PartRow
@@ -322,9 +323,9 @@ export default function HackEditor({ id, initial, repaired, savedExport }: { id:
 
           <section className="hx-sec" aria-labelledby="hx-steps-h">
             <h2 id="hx-steps-h" className="hx-h2">
-              Steps <span className="hx-count">{draft.steps.length}</span>
+              Build order <span className="hx-count">{draft.steps.length}</span>
             </h2>
-            <p className="hx-hint">Each part arrives in one step. Fittings go where the parts of that step touch the ones already there; name parts to narrow it down.</p>
+            <p className="hx-hint">Optional detail. Pieces you add get a step each; the preview shows them arriving in this order. Add fittings where parts of a step meet, or write what to do.</p>
             <ol className="hx-list">
               {draft.steps.map((s, i) => (
                 <StepRow
@@ -407,14 +408,101 @@ function Disclosure({ id, open, onToggle, title, meta, children }: { id: string;
 
 function BaseSection({ draft, set, edit }: { draft: HackDraft; set: (p: Partial<HackDraft>) => void; edit: Edit }) {
   const [q, setQ] = useState("");
+  const [at, setAt] = useState<E.Place>("beside");
+  const [parts, setParts] = useState<string | null>(null); // the piece whose parts are listed
   const hits = useMemo(() => (q.trim().length >= 2 ? searchCatalog(q, 6) : []), [q]);
-  const full = draft.base.length >= LIMITS.base;
+  const full = draft.parts.length >= LIMITS.parts;
+  const groups = E.groupsOf(draft);
   return (
     <section className="hx-sec" aria-labelledby="hx-base-h">
       <h2 id="hx-base-h" className="hx-h2">
-        Start from
+        Build with the library
       </h2>
-      <p className="hx-hint">The IKEA pieces the hack begins with. Pick them from the catalog so the cover links to their own guide.</p>
+      <p className="hx-hint">
+        Pick furniture or single parts from the library and put them together: side by side, on top of each other, or one on legs. Each piece comes as the parts it is made of, and you can move it, then change any part below.
+      </p>
+
+      {groups.length > 0 && (
+        <ul className="hx-list">
+          {groups.map((g) => {
+            const w = E.groupAt(draft, g);
+            return (
+              <li key={g.stem} className="hx-item open">
+                <div className="hx-item-body">
+                  <p className="hx-item-title">
+                    <b>{g.label}</b> <span className="hx-hint">{g.ids.length} {g.ids.length === 1 ? "part" : "parts"}, {w.size.map((n) => Math.round(n) / 10).join(" × ")} cm</span>
+                  </p>
+                  <Vec legend="Where it stands (mm): middle, underside, middle" value={w.at} min={-LIMITS.pos} max={LIMITS.pos} names={["Left to right, x", "Up from floor, y", "Back to front, z"]} onChange={(to) => edit((d) => E.moveGroup(d, g, to), ROOM)} />
+                  <div className="hx-item-actions">
+                    <button type="button" className="btn ghost hx-btn danger" onClick={() => edit((d) => E.removeGroup(d, g))}>
+                      <ITrash size={17} /> Take it out
+                    </button>
+                  </div>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      <div className="hx-search">
+        <label htmlFor="hx-base-q">Find furniture or a part</label>
+        <div className="hx-search-box">
+          <ISearch size={18} />
+          <input id="hx-base-q" type="search" value={q} maxLength={60} placeholder="KALLAX, BILLY, LACK, a leg..." autoComplete="off" disabled={full} onChange={(e) => setQ(e.target.value)} aria-describedby="hx-base-n" />
+        </div>
+        <Pick label="Where it goes" value={at} options={[{ id: "beside", label: "Beside what is there" }, { id: "on-top", label: "On top of it" }]} onChange={(v) => setAt(v as E.Place)} />
+        <span id="hx-base-n" className="hx-hint" aria-live="polite">
+          {full ? `${LIMITS.parts} parts at most.` : q.trim().length >= 2 ? (hits.length ? `${hits.length} found` : "Nothing found. Type the name as IKEA writes it, or add a board below.") : ""}
+        </span>
+        {hits.length > 0 && (
+          <ul className="hx-hits">
+            {hits.map(({ entry: e }) => (
+              <li key={e.slug}>
+                <div className="hx-hit">
+                  <span>
+                    <b>{e.name}</b> {e.variant}
+                  </span>
+                  <span className="hx-hit-add">
+                    <button type="button" className="btn link inline" aria-expanded={parts === e.slug} onClick={() => setParts(parts === e.slug ? null : e.slug)}>
+                      Its parts
+                    </button>
+                    <button
+                      type="button"
+                      className="btn link inline"
+                      onClick={() => {
+                        edit((d) => E.addFurniture(d, e.slug, at), ROOM);
+                        setQ("");
+                      }}
+                    >
+                      <IPlus size={16} /> Add it
+                    </button>
+                  </span>
+                </div>
+                {parts === e.slug && (
+                  <ul className="hx-hits">
+                    {libraryParts(e.slug).map((p) => (
+                      <li key={p.ref}>
+                        <div className="hx-hit">
+                          <span>
+                            {p.name} <span className="hx-hint">{p.size.map((n) => Math.round(n)).join(" × ")} mm, {p.qty} in the box</span>
+                          </span>
+                          <button type="button" className="btn link inline" onClick={() => edit((d) => E.addLibraryPart(d, e.slug, p.ref, at), ROOM)}>
+                            <IPlus size={16} /> Add
+                          </button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <h3 className="hx-h3">Made from</h3>
+      <p className="hx-hint">What the build uses, kept up to date as you add. Edit the names and counts, or add something the library does not have.</p>
       {draft.base.length > 0 && (
         <ul className="hx-rows">
           {draft.base.map((b, i) => (
@@ -428,45 +516,9 @@ function BaseSection({ draft, set, edit }: { draft: HackDraft; set: (p: Partial<
           ))}
         </ul>
       )}
-      <div className="hx-search">
-        <label htmlFor="hx-base-q">Find an IKEA piece</label>
-        <div className="hx-search-box">
-          <ISearch size={18} />
-          <input id="hx-base-q" type="search" value={q} maxLength={60} placeholder="KALLAX, BILLY, LACK..." autoComplete="off" disabled={full} onChange={(e) => setQ(e.target.value)} aria-describedby="hx-base-n" />
-        </div>
-        <span id="hx-base-n" className="hx-hint" aria-live="polite">
-          {full ? `${LIMITS.base} pieces at most.` : q.trim().length >= 2 ? (hits.length ? `${hits.length} found` : "Nothing found. Type the name as IKEA writes it, or add it by hand below.") : ""}
-        </span>
-        {hits.length > 0 && (
-          <ul className="hx-hits">
-            {hits.map(({ entry: e }) => {
-              const name = `${e.name} ${e.variant.charAt(0).toLowerCase()}${e.variant.slice(1)}${/\bcm\b/.test(e.variant) ? "" : `, ${e.size.w} × ${e.size.h} cm`}`.slice(0, LIMITS.variant);
-              return (
-                <li key={e.slug}>
-                  <button
-                    type="button"
-                    className="hx-hit"
-                    onClick={() => {
-                      edit((d) => E.addBase(d, { name, slug: e.slug, qty: 1 }), `${LIMITS.base} pieces at most.`);
-                      setQ("");
-                    }}
-                  >
-                    <span>
-                      <b>{e.name}</b> {e.variant}
-                    </span>
-                    <span className="hx-hit-add">
-                      <IPlus size={16} /> Add
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-        <button type="button" className="btn link inline" disabled={full} onClick={() => edit((d) => E.addBase(d), `${LIMITS.base} pieces at most.`)}>
-          Add one by hand
-        </button>
-      </div>
+      <button type="button" className="btn link inline" disabled={draft.base.length >= LIMITS.base} onClick={() => edit((d) => E.addBase(d), `${LIMITS.base} pieces at most.`)}>
+        Add one by hand
+      </button>
     </section>
   );
 }
@@ -570,8 +622,6 @@ function PartRow({
 }
 
 function AddParts({ draft, edit, onAdded }: { draft: HackDraft; edit: Edit; onAdded: (id: string) => void }) {
-  const [cols, setCols] = useState(2);
-  const [rows, setRows] = useState(2);
   const full = draft.parts.length >= LIMITS.parts;
   return (
     <div className="hx-add">
@@ -587,17 +637,6 @@ function AddParts({ draft, edit, onAdded }: { draft: HackDraft; edit: Edit; onAd
         }}
       >
         <IPlus size={17} /> Add a board
-      </button>
-      <fieldset className="hx-starter">
-        <legend>Add a KALLAX grid as parts</legend>
-        <Num label="Columns" value={cols} min={1} max={5} int onChange={setCols} />
-        <Num label="Rows" value={rows} min={1} max={5} int onChange={setRows} />
-        <button type="button" className="btn ghost hx-btn" disabled={full} onClick={() => edit((d) => E.addKallax(d, cols, rows), ROOM)}>
-          <IPlus size={17} /> Add
-        </button>
-      </fieldset>
-      <button type="button" className="btn ghost hx-btn" disabled={full} onClick={() => edit(E.addBilly, ROOM)}>
-        <IPlus size={17} /> Add a BILLY 80 × 202 frame
       </button>
     </div>
   );

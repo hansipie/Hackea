@@ -1,19 +1,20 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ID_RE, mineSlug, specToDraft, type HackDraft } from "@/lib/hacks/draft";
 import { parseHackText, sanitizeDraft } from "@/lib/hacks/sanitize";
 import { createHack, deleteHack, exportSaved, isUnreadable, knownSlug, loadStored, storageWorks } from "@/lib/hacks/store";
-import { CURATED, billyDraft, blankDraft, kallaxDraft } from "@/lib/hacks/templates";
+import { libraryDraft } from "@/lib/hacks/templates";
+import type { Place } from "@/lib/hacks/edit";
+import { searchCatalog } from "@/lib/search";
 import { cachedSpec } from "@/lib/store";
 import { useMounted } from "@/lib/useMounted";
 import HackEditor from "./HackEditor";
 import PhotoHack from "./PhotoHack";
 import MyHacks, { downloadText } from "./MyHacks";
-import { Num } from "./fields";
-import { IAlert, IArrowRight, IUpload } from "../art/Icons";
+import { Num, Pick } from "./fields";
+import { IAlert, IArrowRight, IPlus, ISearch, ITrash, IUpload } from "../art/Icons";
 
 /** /hacks/new: pick a starting point (or one of your hacks), then edit it at /hacks/new?id=... */
 export default function HackStudio() {
@@ -71,7 +72,7 @@ function Open({ id }: { id: string }) {
       <p className="lead">
         {shared
           ? `"${shared.name}" was shared with you. Save your own copy to change it: the copy gets its own link, and the shared link keeps showing the shared version.`
-          : "Hacks are saved in the browser that made them. Import its JSON file, or start a new one."}
+          : "Builds are saved in the browser that made them. Import its JSON file, or start a new one."}
       </p>
       <div className="hx-gone-actions">
         {shared && (
@@ -94,10 +95,12 @@ function Open({ id }: { id: string }) {
 
 function Start() {
   const router = useRouter();
-  const [cols, setCols] = useState(2);
-  const [rows, setRows] = useState(4);
-  const [units, setUnits] = useState(2);
   const [paste, setPaste] = useState("");
+  const [q, setQ] = useState("");
+  const [picks, setPicks] = useState<{ slug: string; name: string; qty: number }[]>([]);
+  const [at, setAt] = useState<Place>("beside");
+  const [noRoom, setNoRoom] = useState(false);
+  const hits = useMemo(() => (q.trim().length >= 2 ? searchCatalog(q, 6) : []), [q]);
   const [errors, setErrors] = useState<string[]>([]);
   // a refused file that can still be read with repairs: blanks filled, numbers clamped
   const [fixable, setFixable] = useState<HackDraft | null>(null);
@@ -125,70 +128,96 @@ function Start() {
   return (
     <div className="hx-start">
       <header className="page-head">
-        <h1>Make a hack</h1>
-        <p className="lead">Start from IKEA pieces drawn as parts, move and add boards, write the steps, and watch the guide build itself in 3D as you go.</p>
+        <h1>Make one</h1>
+        <p className="lead">Design your own piece of furniture from the library: take one or several pieces, put them side by side or on top of each other, add or swap parts, and see it take shape in 3D.</p>
       </header>
       <p className="callout warn hx-safety">
         <IAlert size={18} />
         <span>
-          <b>Your hacks are yours, and unverified.</b> Nobody checks them, and the starter pieces are approximate drawings of IKEA furniture. Measure your own pieces before you drill or cut.
+          <b>Your builds are yours, and unverified.</b> Nobody checks them, and the library pieces are approximate drawings of IKEA furniture. Measure your own pieces, and check that it holds, before you drill or cut.
         </span>
       </p>
       {!persistent && (
         <p className="callout note hx-safety" role="status">
           <IAlert size={18} />
-          <span>This browser isn&apos;t saving anything (a private window, or storage is blocked). You can still make a hack: export it as a file before you close the tab.</span>
+          <span>This browser isn&apos;t saving anything (a private window, or storage is blocked). You can still make one: export it as a file before you close the tab.</span>
         </p>
       )}
+
+      <section aria-labelledby="hx-lib-h" className="hx-lib">
+        <h2 id="hx-lib-h" className="hx-h2">
+          Start from the library
+        </h2>
+        <p className="hx-hint">Pick the furniture you want to build from. Each comes as its parts, ready to move, cut or combine in the editor.</p>
+        {picks.length > 0 && (
+          <ul className="hx-rows">
+            {picks.map((p) => (
+              <li key={p.slug} className="hx-row">
+                <span className="hx-pick-name">{p.name}</span>
+                <Num label="How many" value={p.qty} min={1} max={8} int onChange={(qty) => setPicks(picks.map((x) => (x.slug === p.slug ? { ...x, qty } : x)))} />
+                <button type="button" className="btn round small hx-del" aria-label={`Remove ${p.name}`} onClick={() => setPicks(picks.filter((x) => x.slug !== p.slug))}>
+                  <ITrash size={18} />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <div className="hx-search">
+          <label htmlFor="hx-lib-q">Find furniture</label>
+          <div className="hx-search-box">
+            <ISearch size={18} />
+            <input id="hx-lib-q" type="search" value={q} maxLength={60} placeholder="KALLAX, BILLY, LACK..." autoComplete="off" onChange={(e) => setQ(e.target.value)} />
+          </div>
+          {hits.length > 0 && (
+            <ul className="hx-hits">
+              {hits.map(({ entry: e }) => (
+                <li key={e.slug}>
+                  <button
+                    type="button"
+                    className="hx-hit"
+                    disabled={picks.length >= 8 || picks.some((p) => p.slug === e.slug)}
+                    onClick={() => {
+                      setPicks([...picks, { slug: e.slug, name: `${e.name} ${e.variant}`, qty: 1 }]);
+                      setNoRoom(false);
+                      setQ("");
+                    }}
+                  >
+                    <span>
+                      <b>{e.name}</b> {e.variant}
+                    </span>
+                    <span className="hx-hit-add">
+                      <IPlus size={16} /> Add
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        {picks.length > 1 || picks.some((p) => p.qty > 1) ? <Pick label="Put them" value={at} options={[{ id: "beside", label: "Side by side" }, { id: "on-top", label: "Stacked" }]} onChange={(v) => setAt(v as Place)} /> : null}
+        <button
+          type="button"
+          className="btn primary"
+          disabled={!picks.length}
+          onClick={() => {
+            const d = libraryDraft(picks, at);
+            if (d) begin(d);
+            else setNoRoom(true);
+          }}
+        >
+          Start building <IArrowRight size={18} />
+        </button>
+        {noRoom && (
+          <p className="hx-hint bad" role="alert">
+            None of these could be placed. Try fewer pieces, or start from one.
+          </p>
+        )}
+        <p className="hx-hint">Or start from a photo of a hack, or from one of your saved builds. You can add library pieces to any of them in the editor.</p>
+      </section>
 
       <PhotoHack />
 
       <MyHacks />
-
-      <section aria-labelledby="hx-start-h">
-        <h2 id="hx-start-h" className="hx-h2">
-          Start a new one
-        </h2>
-        <ul className="hx-starts">
-          <li className="hx-start-card">
-            <b>A KALLAX grid</b>
-            <span className="hx-hint">The frame and every divider as parts, with the steps to build it.</span>
-            <div className="hx-row3">
-              <Num label="Columns" value={cols} min={1} max={5} int onChange={setCols} />
-              <Num label="Rows" value={rows} min={1} max={5} int onChange={setRows} />
-            </div>
-            <button type="button" className="btn primary" onClick={() => begin(kallaxDraft(cols, rows))}>
-              Start from KALLAX {cols} × {rows}
-            </button>
-          </li>
-          <li className="hx-start-card">
-            <b>BILLY bookcases</b>
-            <span className="hx-hint">80 × 202 cm units side by side, with shelves and backs.</span>
-            <Num label="Bookcases" value={units} min={1} max={4} int onChange={setUnits} />
-            <button type="button" className="btn primary" onClick={() => begin(billyDraft(units))}>
-              Start from {units} BILLY
-            </button>
-          </li>
-          <li className="hx-start-card">
-            <b>A blank board</b>
-            <span className="hx-hint">One board to build on, for anything the starters don&apos;t cover.</span>
-            <button type="button" className="btn primary" onClick={() => begin(blankDraft())}>
-              Start blank
-            </button>
-          </li>
-        </ul>
-
-        <h3 className="hx-h3">Or change one of our hacks</h3>
-        <ul className="hx-copies">
-          {CURATED.map((c) => (
-            <li key={c.slug}>
-              <button type="button" className="btn ghost hx-btn" onClick={() => begin(c.draft())}>
-                {c.name}
-              </button>
-            </li>
-          ))}
-        </ul>
-      </section>
 
       <section aria-labelledby="hx-import-h" className="hx-import">
         <h2 id="hx-import-h" className="hx-h2">
@@ -240,9 +269,6 @@ function Start() {
         )}
       </section>
 
-      <p className="hx-hint">
-        Curious how the curated ones are made? <Link href="/hacks">See all hacks</Link>.
-      </p>
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { HACKS } from "@/data/hacks";
 import { billyFrame, kallaxGrid } from "@/data/hacks/parts";
 import { catalogSpec } from "../catalog";
 import { specToDraft, type HackDraft } from "./draft";
+import { addFurniture, type Place } from "./edit";
 
 /** Starting points for the editor: an empty board, an IKEA frame drawn as parts, or a copy of a curated hack. */
 
@@ -61,6 +62,15 @@ export function billyDraft(units: number): HackDraft {
     parts: frames.flatMap((f) => [...f.frame, ...f.shelves, f.back]),
     steps,
   };
+}
+
+/** A build made of pieces from the library, set beside each other or stacked. Null when none of them could be placed. */
+export function libraryDraft(picks: { slug: string; qty: number }[], at: Place): HackDraft | null {
+  let d: HackDraft = { ...common, name: "My build", variant: "", category: "Furniture", summary: "", base: [], parts: [], steps: [] };
+  for (const { slug, qty } of picks)
+    for (let i = 0; i < qty; i++) d = addFurniture(d, slug, at) ?? d;
+  if (!d.parts.length) return null;
+  return { ...d, people: d.parts.length > 40 ? 2 : 1, minutes: 30 * picks.reduce((n, p) => n + p.qty, 0) + 30 };
 }
 
 /** The curated hacks, as drafts to start from. */

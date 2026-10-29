@@ -935,3 +935,19 @@
   .hx-photo-layout { grid-template-columns: minmax(0, 1fr); }
   .hx-photo-choice label:first-child { flex-basis: 100%; }
 }
+
+/* "Make one": the furniture picked from the library, and the parts listed under a pick */
+.hx-pick-name {
+  flex: 1 1 12rem;
+  font-weight: 600;
+}
+.hx-lib {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 28px;
+}
+.hx-hits .hx-hits {
+  margin: 4px 0 8px 14px;
+  width: auto;
+}

@@ -1,6 +1,7 @@
-import type { CustomPart, CustomStep } from "../types";
+import type { CustomPart, CustomStep, Vec3 } from "../types";
 import { billyFrame, kallaxGrid } from "@/data/hacks/parts";
 import { LIMITS, PART_ID, boundsMm, freeId, type HackDraft } from "./draft";
+import { freeStem, furniture, libraryParts } from "./library";
 
 /**
  * Edits the editor makes to a draft. Each returns a new draft, or null when it would break one of the limits
@@ -79,15 +80,26 @@ export function duplicatePart(d: HackDraft, id: string): { draft: HackDraft; id:
   return { draft: at >= 0 ? setPartStep(next, nid, at) : next, id: nid };
 }
 
+/** Where a new piece goes: to the right of what is there, or standing on top of it. */
+export type Place = "beside" | "on-top";
+
 /** Parts and steps from a starter (a KALLAX grid, a BILLY frame), with ids made unique, set to the right of what is there. */
-function append(d: HackDraft, parts: CustomPart[], steps: CustomStep[], stem: string): HackDraft | null {
+function append(d: HackDraft, parts: CustomPart[], steps: CustomStep[], stem: string, at: Place = "beside"): HackDraft | null {
   if (d.parts.length + parts.length > LIMITS.parts || d.steps.length + steps.length > LIMITS.steps) return null;
   const taken = new Set(d.parts.map((p) => p.id));
   let prefix = "";
   for (let i = 1; parts.some((p) => taken.has(prefix + p.id)); i++) prefix = `${stem}${i}-`;
   const re = (id: string) => prefix + id;
-  const dx = d.parts.length ? boundsMm(d.parts).hi[0] - boundsMm(parts).lo[0] + 20 : 0;
-  const moved = parts.map((p) => ({ ...p, id: re(p.id), pos: [p.pos[0] + dx, p.pos[1], p.pos[2]] as CustomPart["pos"] }));
+  const there = boundsMm(d.parts);
+  const here = boundsMm(parts);
+  let dx = 0;
+  let dy = 0;
+  if (d.parts.length && at === "on-top") {
+    // centred over what is there, resting on its top
+    dx = (there.lo[0] + there.hi[0]) / 2 - (here.lo[0] + here.hi[0]) / 2;
+    dy = there.hi[1] - here.lo[1];
+  } else if (d.parts.length) dx = there.hi[0] - here.lo[0] + 20;
+  const moved = parts.map((p) => ({ ...p, id: re(p.id), pos: [p.pos[0] + dx, p.pos[1] + dy, p.pos[2]] as CustomPart["pos"] }));
   if (!inBounds(moved)) return null;
   return {
     ...d,
@@ -109,6 +121,104 @@ export function addBilly(d: HackDraft): HackDraft | null {
     { title: "Nail on the BILLY back", detail: "Square the frame with the back panel as you nail it.", add: [f.back.id], fix: [{ kind: "nail", count: 18 }], tools: ["hammer"], warnings: ["square"] },
   ];
   return append(d, [...f.frame, ...f.shelves, f.back], steps, "billy");
+}
+
+/* ---------- pieces from the library ---------- */
+
+const sameName = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
+
+/** One more of something in "Started from": counted, not listed twice. */
+function withBase(d: HackDraft, item: HackDraft["base"][number]): HackDraft | null {
+  const i = d.base.findIndex((b) => (item.slug ? b.slug === item.slug : !b.slug && sameName(b.name, item.name)));
+  if (i >= 0) return { ...d, base: d.base.map((b, j) => (j === i ? { ...b, qty: Math.min(LIMITS.qty, b.qty + item.qty) } : b)) };
+  return addBase(d, item);
+}
+
+/** A summary this file wrote ("Made from ...") is kept up to date; one the maker wrote or edited is left alone. */
+const AUTO = /^Made from .*\.$/;
+
+/** A build with nothing written yet says what it is made of, so the guide has a summary to open with. */
+function withSummary(d: HackDraft): HackDraft {
+  if ((d.summary.trim() && !AUTO.test(d.summary)) || !d.base.length) return d;
+  const list = d.base.map((b) => (b.qty > 1 ? `${b.qty} × ${b.name}` : b.name)).join(", ");
+  return { ...d, summary: `Made from ${list}.`.slice(0, LIMITS.summary) };
+}
+
+/** A piece of furniture from the library, as the parts it is made of: beside what is there or on top of it. */
+export function addFurniture(d: HackDraft, slug: string, at: Place = "beside"): HackDraft | null {
+  const stem = freeStem(slug, d.parts.map((p) => p.id));
+  const f = stem && furniture(slug, stem);
+  if (!f) return null;
+  const next = append(d, f.parts, f.steps, stem, at);
+  const based = next && withBase(next, { name: f.label, slug, qty: 1 });
+  return based && withSummary(based);
+}
+
+/** One part of a library piece on its own (a side panel, a shelf, a leg), set beside or on top of what is there. */
+export function addLibraryPart(d: HackDraft, slug: string, ref: string, at: Place = "beside"): HackDraft | null {
+  const f = furniture(slug);
+  const t = libraryParts(slug).find((p) => p.ref === ref);
+  if (!f || !t) return null;
+  const id = freeId(d.parts, `${f.short}-${t.label || t.name}`);
+  const part: CustomPart = {
+    id,
+    label: t.label.slice(0, LIMITS.label) || undefined,
+    name: `${f.short}: ${t.name}`.slice(0, LIMITS.partName),
+    size: t.size.map((n) => Math.min(LIMITS.size[1], Math.max(LIMITS.size[0], Math.round(n * 10) / 10))) as Vec3,
+    pos: [0, 0, 0],
+    shape: t.shape,
+    material: t.material,
+  };
+  part.pos[1] = part.size[1] / 2;
+  const step: CustomStep = { title: `Add the ${t.name.toLowerCase()}`.slice(0, LIMITS.title), add: [id] };
+  const next = append(d, [part], [step], "x", at);
+  if (!next) return null;
+  const based = withBase(next, { name: `${f.short} ${t.name.toLowerCase()}, one part`.slice(0, LIMITS.variant), qty: 1 });
+  return based && withSummary(based);
+}
+
+/* A piece added from the library keeps one stem on all its ids ("billy1-"), which is how its parts move and go together. */
+
+export interface Group {
+  stem: string;
+  label: string;
+  ids: string[];
+}
+
+/** The pieces of the build: parts that share a stem, in the order they were added. */
+export function groupsOf(d: HackDraft): Group[] {
+  const by = new Map<string, Group>();
+  for (const p of d.parts) {
+    const stem = p.id.split("-")[0];
+    if (!/^[a-z]+\d+$/.test(stem) || !p.id.includes("-")) continue;
+    const g = by.get(stem) ?? { stem, label: p.name.includes(": ") ? p.name.split(": ")[0] : stem.replace(/\d+$/, "").toUpperCase(), ids: [] };
+    g.ids.push(p.id);
+    by.set(stem, g);
+  }
+  return [...by.values()];
+}
+
+/** Where a piece is: the middle of its footprint, its height off the floor. */
+export function groupAt(d: HackDraft, g: Group): { size: Vec3; at: Vec3 } {
+  const { lo, hi, size } = boundsMm(d.parts.filter((p) => g.ids.includes(p.id)));
+  return { size, at: [(lo[0] + hi[0]) / 2, lo[1], (lo[2] + hi[2]) / 2] };
+}
+
+/** Moves a piece so the middle of its footprint is at x and z, and its underside at y (mm). */
+export function moveGroup(d: HackDraft, g: Group, to: Vec3): HackDraft | null {
+  const from = groupAt(d, g).at;
+  const by = [to[0] - from[0], to[1] - from[1], to[2] - from[2]];
+  const parts = d.parts.map((p) => (g.ids.includes(p.id) ? { ...p, pos: [p.pos[0] + by[0], p.pos[1] + by[1], p.pos[2] + by[2]] as Vec3 } : p));
+  return inBounds(parts) ? { ...d, parts } : null;
+}
+
+/** Takes a piece out with its parts and steps, and one off the count of what it came from. */
+export function removeGroup(d: HackDraft, g: Group): HackDraft {
+  const out = g.ids.reduce(removePart, d);
+  const i = out.base.findIndex((b) => b.slug && b.name.toUpperCase().startsWith(g.label.toUpperCase()));
+  if (i < 0) return out;
+  const base = out.base.flatMap((b, j) => (j !== i ? [b] : b.qty > 1 ? [{ ...b, qty: b.qty - 1 }] : []));
+  return withSummary({ ...out, base });
 }
 
 export function addStep(d: HackDraft): HackDraft | null {

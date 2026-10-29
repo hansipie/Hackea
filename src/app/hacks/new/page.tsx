@@ -5,8 +5,8 @@ import SiteFooter from "@/components/SiteFooter";
 import HackStudio from "@/components/hacks/HackStudio";
 
 export const metadata: Metadata = {
-  title: "Make a hack | Hackea",
-  description: "Upload an IKEA hack photo, confirm matching catalogue pieces, and generate an editable assembly guide with a parts list and 3D steps.",
+  title: "Make one | Hackea",
+  description: "Design your own furniture from the library: combine one or several IKEA pieces and their parts, side by side or stacked, and see it in 3D.",
   alternates: { canonical: "/hacks/new" },
 };
 
