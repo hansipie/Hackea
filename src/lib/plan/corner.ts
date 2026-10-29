@@ -1,6 +1,7 @@
 import type { ProductSpec, Vec3 } from "../types";
 import { HW, PlanBuilder, type FitOpts } from "./builder";
 import { clamp } from "./math";
+import { sofaDims } from "./sofaDims";
 
 /** One seat section on the floor: its footprint and how its seats run. */
 interface Section {
@@ -26,18 +27,17 @@ interface Section {
 export function buildCornerSofa(b: PlanBuilder, s: ProductSpec) {
   if (s.sofa?.corner && (s.sofa.seats ?? 3) <= 1) return cornerSection(b, s);
   const p = s.sofa ?? {};
-  const W = s.size.w * 10, H = s.size.h * 10, D = s.size.d * 10;
-  const arms = p.arms ?? "wide";
-  const a = arms === "wide" ? Math.min(170, W * 0.12) : arms === "slim" ? 80 : 0;
+  const W = s.size.w * 10, D = s.size.d * 10;
   // a long straight sofa: two sections side by side, as deep as the sofa
   const straight = p.corner === undefined && !p.chaise;
   const sd = straight ? D : clamp((p.depth ?? 92) * 10, 700, Math.min(1100, D - 300));
-  const legH = 110, baseTop = 300, seatT = 140;
+  const { a, legH, baseTop, seatT, seatTop, armH, backH, backT, cushT, cushH } = sofaDims(s, W, sd);
   const fh = baseTop - legH;
-  const backT = Math.min(200, sd * 0.22);
-  const armH = Math.min(H - 60, 640);
-  const hb = H - baseTop;
-  const bh = Math.max(240, H - baseTop - seatT - 40);
+  const hb = backH - baseTop;
+  const bh = cushH;
+  // the back cushions stand on the seat cushions and lean on the backrest
+  const tilt = 0.12;
+  const lean = (bh / 2) * Math.sin(tilt) + 4;
   const corner = p.corner !== undefined;
   // a U: a corner sofa with a chaise longue at the far end of the back
   const u = corner && !!p.chaise;
@@ -117,7 +117,8 @@ export function buildCornerSofa(b: PlanBuilder, s: ProductSpec) {
 
   // armrests: at the outer ends, and at the front of a corner sofa's return
   const armKeys: { key: string; from: Vec3 }[] = [];
-  const ah = armH - legH + 40, ay = legH - 40 + ah / 2;
+  const armB = Math.max(15, legH - 40);
+  const ah = armH - armB, ay = armB + ah / 2;
   if (a > 0) {
     const first = secs[0], last = secs[secs.length - 1];
     // an armrest along a chaise longue is longer than the others
@@ -164,7 +165,8 @@ export function buildCornerSofa(b: PlanBuilder, s: ProductSpec) {
   const backCs: string[] = [];
   const cd = sd - backT - 16;
   const zSeat = back + backT + 8 + cd / 2;
-  const zBack = back + backT + 80;
+  const zBack = back + backT + cushT / 2 + lean;
+  const yBack = seatTop + bh / 2 - 4;
   for (const sec of secs) {
     if (sec.along === "x") {
       const cw = (sec.x1 - sec.x0) / sec.seats;
@@ -176,12 +178,12 @@ export function buildCornerSofa(b: PlanBuilder, s: ProductSpec) {
           // the corner seat stops at the side backrest
           const cx = W / 2 - backT - 8 - cd / 2;
           seatCs.push(b.place(soft("Seat cushion", [cd, seatT, cd]), [X(cx), baseTop + seatT / 2, zSeat]));
-          backCs.push(b.place(soft("Back cushion", [sd - backT - 14, bh, 170]), [X(W / 2 - backT - (sd - backT) / 2), baseTop + seatT + bh / 2 - 6, zBack], [-0.16, 0, 0]));
+          backCs.push(b.place(soft("Back cushion", [sd - backT - 14, bh, cushT]), [X(W / 2 - backT - (sd - backT) / 2), yBack, zBack], [-tilt, 0, 0]));
           continue;
         }
         const sz = sec.name === "Chaise longue" ? "Chaise cushion" : "Seat cushion";
         seatCs.push(b.place(soft(sz, [cw - 8, seatT, depth]), [X(x), baseTop + seatT / 2, back + backT + 8 + depth / 2]));
-        backCs.push(b.place(soft("Back cushion", [cw - 14, bh, 170]), [X(x), baseTop + seatT + bh / 2 - 6, zBack], [-0.16, 0, 0]));
+        backCs.push(b.place(soft("Back cushion", [cw - 14, bh, cushT]), [X(x), yBack, zBack], [-tilt, 0, 0]));
       }
     } else {
       const cw = (sec.z1 - sec.z0) / sec.seats;
@@ -190,7 +192,7 @@ export function buildCornerSofa(b: PlanBuilder, s: ProductSpec) {
         const z = sec.z0 + cw * (i + 0.5);
         seatCs.push(b.place(soft("Seat cushion", [cw - 8, seatT, cd]), [X(cx), baseTop + seatT / 2, z], [0, Math.PI / 2, 0]));
         // thin across, leaning out against the side backrest
-        backCs.push(b.place(soft("Back cushion", [170, bh, cw - 14]), [X(W / 2 - backT - 80), baseTop + seatT + bh / 2 - 6, z], [0, 0, X(-0.16)]));
+        backCs.push(b.place(soft("Back cushion", [cushT, bh, cw - 14]), [X(W / 2 - backT - cushT / 2 - lean), yBack, z], [0, 0, X(-tilt)]));
       }
     }
   }
@@ -378,12 +380,12 @@ export function buildCornerSofa(b: PlanBuilder, s: ProductSpec) {
  */
 function cornerSection(b: PlanBuilder, s: ProductSpec) {
   const p = s.sofa ?? {};
-  const W = s.size.w * 10, H = s.size.h * 10, D = s.size.d * 10;
-  const legH = 110, baseTop = 300, seatT = 140;
+  const W = s.size.w * 10, D = s.size.d * 10;
+  const { legH, baseTop, seatT, seatTop, backH, backT, cushT, cushH: bh } = sofaDims({ ...s, sofa: { ...p, arms: "none" } }, W, D);
   const fh = baseTop - legH;
-  const backT = Math.min(200, D * 0.22);
-  const hb = H - baseTop;
-  const bh = Math.max(240, H - baseTop - seatT - 40);
+  const hb = backH - baseTop;
+  const tilt = 0.12;
+  const lean = (bh / 2) * Math.sin(tilt) + 4;
   const back = -D / 2;
   // the backrest runs along the back and down one side, the left unless the sofa says right
   const sx = p.corner === "right" ? 1 : -1;
@@ -404,10 +406,10 @@ function cornerSection(b: PlanBuilder, s: ProductSpec) {
   const backrest = b.place(rest.type, rest.mid);
   const cs = Math.min(W, D) - backT - 16;
   const seat = b.place(b.part("Seat cushion", [cs, seatT, cs], { material: "soft" }), [X(W / 2 - backT - 8 - cs / 2), baseTop + seatT / 2, back + backT + 8 + cs / 2]);
-  const bcT = b.part("Back cushion", [cs - 6, bh, 170], { material: "soft" });
+  const bcT = b.part("Back cushion", [cs - 6, bh, cushT], { material: "soft" });
   const cushions = [
-    b.place(bcT, [X(W / 2 - backT - 8 - cs / 2), baseTop + seatT + bh / 2 - 6, back + backT + 80], [-0.16, 0, 0]),
-    b.place(b.part("Back cushion", [170, bh, cs - 6], { material: "soft" }), [X(W / 2 - backT - 80), baseTop + seatT + bh / 2 - 6, back + backT + 8 + cs / 2], [0, 0, X(-0.16)]),
+    b.place(bcT, [X(W / 2 - backT - 8 - cs / 2), seatTop + bh / 2 - 4, back + backT + cushT / 2 + lean], [-tilt, 0, 0]),
+    b.place(b.part("Back cushion", [cushT, bh, cs - 6], { material: "soft" }), [X(W / 2 - backT - cushT / 2 - lean), seatTop + bh / 2 - 4, back + backT + 8 + cs / 2], [0, 0, X(-tilt)]),
   ];
 
   b.step(

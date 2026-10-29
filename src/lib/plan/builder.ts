@@ -26,6 +26,7 @@ export interface HwDef {
   len: number;
   dia: number;
   notIncluded?: boolean;
+  name?: string; // the fitting's own name when the kind's general one doesn't fit ("Catch", "Knob bolt")
 }
 
 export const HW = {
@@ -54,6 +55,17 @@ export const HW = {
   roller: { kind: "roller", len: 44, dia: 26 },
   flatHinge: { kind: "flatHinge", len: 60, dia: 34 },
   hook: { kind: "hook", len: 55, dia: 22 },
+  runner: { kind: "runner", len: 400, dia: 40 },
+  clip: { kind: "clip", len: 12, dia: 10 },
+  strap: { kind: "strap", len: 110, dia: 20 },
+  nut: { kind: "nut", len: 5, dia: 6 },
+  washer: { kind: "washer", len: 1.5, dia: 16 },
+  stud: { kind: "stud", len: 22, dia: 8 },
+  clamp: { kind: "clamp", len: 44, dia: 18 },
+  angle: { kind: "angle", len: 30, dia: 24 },
+  foot: { kind: "foot", len: 30, dia: 32 },
+  cap: { kind: "cap", len: 2, dia: 14 },
+  spacer: { kind: "spacer", len: 20, dia: 16 },
 } satisfies Record<string, HwDef>;
 
 const HW_NAMES: Record<HwKind, string> = {
@@ -79,7 +91,22 @@ const HW_NAMES: Record<HwKind, string> = {
   roller: "Door roller",
   flatHinge: "Flat hinge",
   hook: "Hook",
+  clip: "Plastic clip",
+  strap: "Wall strap",
+  nut: "Nut",
+  washer: "Washer",
+  stud: "Stud",
+  clamp: "Clamp",
+  angle: "Angle bracket",
+  foot: "Foot",
+  cap: "Cover cap",
+  spacer: "Wall spacer",
 };
+
+/** The fitting a placed one was made from, own name included, to fit the same again (rows repeating a frame). */
+export function defOf(ht: HwType): HwDef {
+  return { kind: ht.kind, len: ht.len, dia: ht.dia, notIncluded: ht.notIncluded, ...(ht.name !== HW_NAMES[ht.kind] ? { name: ht.name } : {}) };
+}
 
 export function hwSpecText(kind: HwKind, len: number, dia: number) {
   switch (kind) {
@@ -100,6 +127,11 @@ export function hwSpecText(kind: HwKind, len: number, dia: number) {
       return `${len} mm`;
     case "handle":
       return `${len} mm`;
+    case "nut":
+    case "washer":
+      return `${dia} mm`;
+    case "stud":
+      return `${dia} × ${len} mm`;
     default:
       return "";
   }
@@ -211,12 +243,12 @@ export class PlanBuilder {
   }
 
   hwType(def: HwDef) {
-    const id = `${def.kind}-${def.len}-${def.dia}${def.notIncluded ? "-x" : ""}`;
+    const id = `${def.kind}-${def.len}-${def.dia}${def.notIncluded ? "-x" : ""}${def.name ? "-" + def.name.toLowerCase().replace(/[^a-z0-9]+/g, "-") : ""}`;
     if (!this.hw.has(id)) {
       this.hw.set(id, {
         id,
         kind: def.kind,
-        name: HW_NAMES[def.kind],
+        name: def.name ?? HW_NAMES[def.kind],
         spec: hwSpecText(def.kind, def.len, def.dia),
         len: def.len,
         dia: def.dia,
@@ -285,6 +317,21 @@ export class PlanBuilder {
   }
 
   /** Part is shown somewhere else (laid flat, upside down...) from this step until it is added. */
+  /** Where a fitting going in at `at` along `dir` meets a part: its hole is there, not where the fitting starts. */
+  entry(key: string, at: Vec3, dir: Vec3, len: number): Vec3 {
+    const it = this.partItem(key);
+    const size = this.parts.find((p) => p.id === it.ref)?.size;
+    if (!size) return at;
+    const l = toLocal(at, it.final.pos, it.final.rot);
+    const n = unrotate(dir, it.final.rot);
+    const inside = (q: Vec3) => q.every((v, i) => Math.abs(v) <= size[i] / 2 + 0.5);
+    if (inside(l)) return at;
+    for (let t = 1; t <= len + 2; t++) {
+      if (inside([l[0] + n[0] * t, l[1] + n[1] * t, l[2] + n[2] * t])) return [at[0] + dir[0] * t, at[1] + dir[1] * t, at[2] + dir[2] * t];
+    }
+    return at;
+  }
+
   stage(key: string, pos: Vec3, rot: Vec3, from?: Vec3) {
     const it = this.partItem(key);
     const s = this.step_;
@@ -304,7 +351,7 @@ export class PlanBuilder {
       const r = o.hole === false ? 0 : (o.hole ?? holeR(def));
       if (r > 0) p.holes.push({ p: pos, n: [-dir[0], -dir[1], -dir[2]], r });
     }
-    if (o.mate) this.hole(o.mate, o.at, o.dir, o.mateHole ?? Math.max(holeR(def), 3));
+    if (o.mate) this.hole(o.mate, this.entry(o.mate, o.at, o.dir, def.len), o.dir, o.mateHole ?? Math.max(holeR(def), 3));
     const travel = o.travel ?? defaultTravel(def);
     const extra = def.kind === "cam" ? 0.7 : o.spin ? 0.35 : 0;
     const it: HwItem = {
@@ -438,6 +485,7 @@ function holeR(def: HwDef) {
     case "legScrew":
       return 4;
     case "bolt":
+    case "stud":
       return 3.5;
     default:
       return 0;
@@ -466,7 +514,15 @@ function defaultTravel(def: HwDef) {
       return 40;
     case "knob":
     case "handle":
+    case "foot":
       return 40;
+    case "nut":
+    case "washer":
+    case "stud":
+    case "clip":
+      return 26;
+    case "cap":
+      return 18;
     default:
       return 50;
   }
@@ -481,7 +537,10 @@ function defaultSpin(def: HwDef) {
     case "bolt":
       return 3;
     case "legScrew":
+    case "foot":
       return 2;
+    case "nut":
+      return 3;
     default:
       return 0;
   }

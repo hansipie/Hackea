@@ -1,6 +1,6 @@
 import type { CustomFix, CustomPart, CustomStep, HwKind, PartMaterial, Pose, ProductSpec, StepKind, ToolId, Vec3, WarnId } from "../types";
 import { HW, PlanBuilder, type FitOpts, type HwDef } from "./builder";
-import { POSE_EULER, unrotate } from "./math";
+import { POSE_EULER, rotate, unrotate } from "./math";
 
 /**
  * Builds a guide from a product someone scanned from their own manual.
@@ -28,7 +28,20 @@ interface Contact {
 const AXES = [0, 1, 2] as const;
 const PRE: HwKind[] = ["dowel", "camScrew", "pin", "legScrew", "plate"];
 
-export function boxOf(p: { size: Vec3; pos: Vec3 }): Box {
+export function boxOf(p: { size: Vec3; pos: Vec3; rot?: Vec3 }): Box {
+  if (p.rot && p.rot.some((r) => r)) {
+    const lo: Vec3 = [Infinity, Infinity, Infinity], hi: Vec3 = [-Infinity, -Infinity, -Infinity];
+    for (const a of [-1, 1])
+      for (const b of [-1, 1])
+        for (const c of [-1, 1]) {
+          const v = rotate([(a * p.size[0]) / 2, (b * p.size[1]) / 2, (c * p.size[2]) / 2], p.rot);
+          for (let i = 0; i < 3; i++) {
+            lo[i] = Math.min(lo[i], p.pos[i] + v[i]);
+            hi[i] = Math.max(hi[i], p.pos[i] + v[i]);
+          }
+        }
+    return { min: lo, max: hi };
+  }
   return {
     min: [p.pos[0] - p.size[0] / 2, p.pos[1] - p.size[1] / 2, p.pos[2] - p.size[2] / 2],
     max: [p.pos[0] + p.size[0] / 2, p.pos[1] + p.size[1] / 2, p.pos[2] + p.size[2] / 2],
@@ -70,6 +83,18 @@ function contactOf(a: Node, b: Node, tol = 4): Contact | null {
     ],
     uv: [u, v],
   };
+}
+
+function nearest(pool: Node[], p: Vec3): Node {
+  let best = pool[0], bd = Infinity;
+  for (const n of pool) {
+    const d = Math.hypot(...([0, 1, 2] as const).map((k) => Math.max(n.box.min[k] - p[k], 0, p[k] - n.box.max[k])));
+    if (d < bd) {
+      bd = d;
+      best = n;
+    }
+  }
+  return best;
 }
 
 const longLen = (c: Contact) => Math.max(c.rect[0][1] - c.rect[0][0], c.rect[1][1] - c.rect[1][0]);
@@ -140,18 +165,55 @@ function defFor(f: CustomFix, thick?: number): HwDef {
         return HW.hinge;
       case "glide":
         return HW.glide;
+      case "clip":
+        return HW.clip;
+      case "strap":
+        return HW.strap;
+      case "nut":
+        return HW.nut;
+      case "washer":
+        return HW.washer;
+      case "stud":
+        return HW.stud;
+      case "clamp":
+        return HW.clamp;
+      case "angle":
+        return HW.angle;
+      case "foot":
+        return HW.foot;
+      case "cap":
+        return HW.cap;
+      case "spacer":
+        return HW.spacer;
+      case "runner":
+        return HW.runner;
+      case "hook":
+        return HW.hook;
+      case "plug":
+        return HW.plug;
+      case "connector":
+        return HW.connector;
+      case "castor":
+        return HW.castor;
+      case "flatHinge":
+        return HW.flatHinge;
+      case "roller":
+        return HW.roller;
+      case "gasLift":
+        return HW.gasLift;
       default:
         return HW.screwM;
     }
   })();
   const len = f.len && f.len > 2 && f.len < 400 ? Math.round(f.len) : base.kind === "screw" && thick ? Math.round(Math.min(70, Math.max(14, thick + 16)) / 2) * 2 : base.len;
   const dia = f.dia && f.dia > 0.8 && f.dia < 60 ? Math.round(f.dia * 10) / 10 : base.dia;
-  return { ...base, len, dia };
+  return { ...base, len, dia, ...(f.name ? { name: f.name } : {}), ...(f.included ? { notIncluded: false } : {}) };
 }
 
 function inferMaterial(p: CustomPart): PartMaterial {
   if (p.material) return p.material;
   const n = p.name.toLowerCase();
+  if (/glass|mirror/.test(n)) return "glass";
   if (/back|hardboard|fibre|fiber/.test(n)) return "fiber";
   if (/cushion|pillow|mattress|seat pad|upholster/.test(n)) return "soft";
   if (/metal|steel|tube|rail|rod|bar/.test(n)) return "metal";
@@ -172,6 +234,11 @@ const KIND_OF: Partial<Record<HwKind, StepKind>> = {
   knob: "screws",
   handle: "screws",
   bracket: "anchor",
+  strap: "anchor",
+  angle: "screws",
+  nut: "bolts",
+  stud: "bolts",
+  foot: "legs",
 };
 
 const TOOLS_OF: Partial<Record<HwKind, ToolId>> = {
@@ -184,6 +251,9 @@ const TOOLS_OF: Partial<Record<HwKind, ToolId>> = {
   knob: "screwdriver",
   handle: "screwdriver",
   bracket: "drill",
+  strap: "drill",
+  angle: "screwdriver",
+  nut: "allen",
 };
 
 export function buildCustom(b: PlanBuilder, s: ProductSpec) {
@@ -201,15 +271,19 @@ export function buildCustom(b: PlanBuilder, s: ProductSpec) {
   const types = new Map<string, string>();
   for (const p of c.parts) {
     const material = inferMaterial(p);
-    const horizontalRod = p.shape === "cyl" && Math.max(p.size[0], p.size[2]) > p.size[1] * 1.5;
-    const tk = `${p.name.toLowerCase()}|${p.size.map((n) => Math.round(n)).join("x")}|${p.shape ?? "box"}|${material}`;
+    // a rod lies along x or z; a cylinder as wide as it is deep is a disc (a round top or seat), drawn upright
+    const horizontalRod = p.shape === "cyl" && Math.max(p.size[0], p.size[2]) > p.size[1] * 1.5 && Math.abs(p.size[0] - p.size[2]) > 0.3 * Math.max(p.size[0], p.size[2]);
+    const tk = `${p.name.toLowerCase()}|${p.size.map((n) => Math.round(n)).join("x")}|${p.shape ?? "box"}|${material}|${p.pieces ? JSON.stringify(p.pieces) : ""}`;
     let ref = types.get(tk);
+    const turned = !!p.rot?.some((r) => r);
+    const rod = horizontalRod && !turned && !p.pieces;
     if (!ref) {
-      const size: Vec3 = p.shape === "cyl" ? (horizontalRod ? [Math.min(p.size[1], p.size[2], p.size[0]), Math.max(p.size[0], p.size[2]), Math.min(p.size[1], p.size[2], p.size[0])] : [p.size[0], p.size[1], p.size[2]]) : p.size;
-      ref = b.part(p.name, size, { shape: p.shape ?? "box", material, label: labelsOk ? p.label : undefined });
+      const size: Vec3 = p.shape === "cyl" && rod ? [Math.min(p.size[1], p.size[2], p.size[0]), Math.max(p.size[0], p.size[2]), Math.min(p.size[1], p.size[2], p.size[0])] : [p.size[0], p.size[1], p.size[2]];
+      ref = b.part(p.name, size, { shape: p.shape ?? "box", material, label: labelsOk ? p.label : undefined, extra: p.extra });
+      if (p.pieces?.length) b.parts[b.parts.length - 1].pieces = p.pieces;
       types.set(tk, ref);
     }
-    const rot: Vec3 = horizontalRod ? (p.size[0] >= p.size[2] ? [0, 0, Math.PI / 2] : [Math.PI / 2, 0, 0]) : [0, 0, 0];
+    const rot: Vec3 = turned ? p.rot! : rod ? (p.size[0] >= p.size[2] ? [0, 0, Math.PI / 2] : [Math.PI / 2, 0, 0]) : [0, 0, 0];
     const key = b.place(ref, p.pos, rot);
     nodes.set(p.id, { id: p.id, part: p, key, box: boxOf(p) });
   }
@@ -221,15 +295,35 @@ export function buildCustom(b: PlanBuilder, s: ProductSpec) {
   const ctx: Ctx = { center, lo, hi };
   const isPlaced = (n: Node) => placed.includes(n);
   const steps = normalizeSteps(c.steps, c.parts);
+  // a part a step asks to wait (it takes its fittings now, a later step joins it) stands beside the build, then moves in
+  const addedAfter = (n: Node, si: number) => steps.slice(si + 1).some((x) => x.add?.includes(n.id));
+  const aside = new Set<Node>();
   let pose: Pose = "+y";
+  // dowels and cam bolts so far: a part they join has to arrive along them, not slide across them
+  const pins: { host: Node; mate: string; dir: Vec3 }[] = [];
+  const keep = (groups: Group[]) => {
+    for (const g of groups) if (g.def.kind === "dowel" || g.def.kind === "camScrew") for (const f of g.fits) if (f.mate) pins.push({ host: f.host, mate: f.mate, dir: f.dir });
+  };
+  const arrive = (n: Node, others: Node[], given?: Vec3) => {
+    const off = given ?? approach(n, others, pose);
+    if (given) return off;
+    const keys = new Set(others.map((o) => o.key));
+    // a dowel in this part sticks out towards its mate, so the part moves against its direction; one in a part already there, the other way
+    const ways = pins.flatMap((p) => (p.host === n && keys.has(p.mate) ? [p.dir] : p.mate === n.key && others.includes(p.host) ? [p.dir.map((v) => -v) as Vec3] : []));
+    const axes = new Set(ways.map(major));
+    if (axes.size !== 1) return off;
+    const k = [...axes][0];
+    if (major(off) === k && Math.sign(off[k]) === Math.sign(ways[0][k])) return off;
+    return unit(k, Math.sign(ways[0][k]) * Math.hypot(...off));
+  };
 
   steps.forEach((st, si) => {
     const adds = (st.add ?? []).map((id) => nodes.get(id)).filter((n): n is Node => !!n && !isPlaced(n));
-    const fixes = (st.fix ?? []).filter((f) => f.count > 0).slice(0, 6);
+    const fixes = (st.fix ?? []).filter((f) => f.count > 0 || f.at?.length).slice(0, 24);
     const nextPose = st.pose ?? pose;
     const turned = nextPose !== pose;
     pose = nextPose;
-    const kind: StepKind = adds.length
+    const kind: StepKind = st.kind ?? (adds.length
       ? fixes.length
         ? (KIND_OF[fixes.find((f) => !PRE.includes(f.kind))?.kind ?? fixes[0].kind] ?? "join")
         : "join"
@@ -239,14 +333,15 @@ export function buildCustom(b: PlanBuilder, s: ProductSpec) {
           ? pose === "+y"
             ? "standup"
             : "flip"
-          : "general";
+          : "general");
     const tools = new Set<ToolId>(st.tools ?? []);
     for (const f of fixes) {
       const t = TOOLS_OF[f.kind];
-      if (t) tools.add(t);
+      // hex bolts tightened with the spanner: a step that names the spanner doesn't also need the Allen key
+      if (t && !(t === "allen" && tools.has("wrench"))) tools.add(t);
     }
     const warnings = new Set<WarnId>(st.warnings ?? []);
-    const wall = fixes.some((f) => f.kind === "bracket");
+    const wall = st.wall ?? fixes.some((f) => f.kind === "bracket" || f.kind === "strap");
     if (wall) {
       warnings.add("wall");
       tools.add("pencil");
@@ -263,6 +358,8 @@ export function buildCustom(b: PlanBuilder, s: ProductSpec) {
         pose,
         kind,
         wall,
+        repeat: st.repeat,
+        check: st.check,
         warnings: [...warnings].slice(0, 3),
       },
       () => {
@@ -289,17 +386,29 @@ export function buildCustom(b: PlanBuilder, s: ProductSpec) {
 
         const pre = fixes.filter((f) => PRE.includes(f.kind));
         const post = fixes.filter((f) => !PRE.includes(f.kind));
-        const preGroups = pre.flatMap((f) => planFits(f, jointsFor(f), freshFor(f), placed, ctx));
+        const preGroups = pre.flatMap((f) => planFits(f, jointsFor(f), freshFor(f), placed, ctx, nodes));
+        keep(preGroups);
 
         // a part that receives fittings before it is joined shows up now, so you can see where they go
         const hosts = adds.length ? [] : [...new Set(preGroups.flatMap((g) => g.fits.map((x) => x.host)))].filter((n) => !isPlaced(n));
         const arriving = [...hosts, ...adds];
         b.stagger(arriving.length > 3 ? 0.18 : 0.26);
         const inStep: Node[] = [];
-        if (hosts.length) {
-          for (const n of hosts) {
-            b.add(n.key, approach(n, [...placed, ...inStep], pose));
-            inStep.push(n);
+        const waiting: Node[] = [];
+        const toWait = (st.wait ?? []).map((id) => nodes.get(id)).filter((n): n is Node => !!n && !isPlaced(n) && !aside.has(n) && !adds.includes(n) && addedAfter(n, si));
+        const fresh = [...new Set([...hosts, ...toWait])].filter((n) => !aside.has(n));
+        if (fresh.length) {
+          for (const n of fresh) {
+            const off = arrive(n, [...placed, ...inStep], st.from?.[n.id]);
+            if (toWait.includes(n)) {
+              const it = b.partItem(n.key);
+              b.stage(n.key, beside(n, off, ctx), it.final.rot, off);
+              aside.add(n);
+              waiting.push(n);
+            } else {
+              b.add(n.key, off);
+              inStep.push(n);
+            }
           }
           b.then(0.15);
         }
@@ -312,23 +421,36 @@ export function buildCustom(b: PlanBuilder, s: ProductSpec) {
 
         b.stagger(adds.length > 3 ? 0.18 : 0.26);
         for (const n of adds) {
-          b.add(n.key, approach(n, [...placed, ...inStep], pose));
+          b.add(n.key, arrive(n, [...placed, ...inStep], st.from?.[n.id]));
           inStep.push(n);
         }
         if (adds.length) b.then(0.12);
 
         b.stagger(0.05);
         for (const f of post) {
-          emit(b, planFits(f, jointsFor(f), freshFor(f), [...placed, ...inStep], ctx), used);
+          const groups = planFits(f, jointsFor(f), freshFor(f), [...placed, ...inStep], ctx, nodes);
+          keep(groups);
+          emit(b, groups, used);
           b.then(0.1);
         }
-        stepHosts = hosts;
+        stepHosts = hosts.filter((n) => !waiting.includes(n) && !aside.has(n));
       },
     );
     placed.push(...stepHosts, ...adds);
     if (adds.length || stepHosts.length) lastAdded = [...stepHosts, ...adds];
     stepHosts = [];
   });
+}
+
+/** Where a part waits before it is joined: off to the side of the build, at the height it will end up at. */
+function beside(n: Node, off: Vec3, ctx: Ctx): Vec3 {
+  const pos = n.part.pos;
+  const sideways = Math.abs(off[0]) + Math.abs(off[2]) > Math.abs(off[1]);
+  if (sideways) return [pos[0] + off[0] * 1.6, pos[1], pos[2] + off[2] * 1.6];
+  // it would arrive from above: hold it next to the build instead, on the side it sits nearest
+  const half = (ctx.hi[0] - ctx.lo[0]) / 2;
+  const sx = pos[0] >= ctx.center[0] ? 1 : -1;
+  return [ctx.center[0] + sx * (half + ext(n.box, 0) / 2 + 180), pos[1], pos[2]];
 }
 
 /** Parts the next step attaches, so hardware-only steps ("tap in the dowels") land where those joints will be. */
@@ -338,6 +460,12 @@ function lookahead(steps: CustomStep[], si: number, nodes: Map<string, Node>, pl
     if (next.length) return next;
   }
   return [];
+}
+
+/** The axis a vector mostly points along. */
+function major(v: Vec3): number {
+  const a = v.map(Math.abs);
+  return a[0] >= a[1] && a[0] >= a[2] ? 0 : a[1] >= a[2] ? 1 : 2;
 }
 
 function approach(n: Node, others: Node[], pose: Pose): Vec3 {
@@ -373,7 +501,18 @@ interface Ctx {
 }
 
 /** Work out where each fitting of one kind goes. Nothing is emitted yet, so the step can show the host parts first. */
-function planFits(f: CustomFix, contacts: Contact[], fresh: Node[], placed: Node[], ctx: Ctx): Group[] {
+function planFits(f: CustomFix, contacts: Contact[], fresh: Node[], placed: Node[], ctx: Ctx, nodes?: Map<string, Node>): Group[] {
+  if (f.at?.length && nodes) {
+    // placed by hand: each point, going in the given way (down by default), in the named part or the nearest one
+    const dir: Vec3 = f.dir ?? [0, -1, 0];
+    const pool = [...fresh, ...placed];
+    const fits: Fit[] = f.at.map((at) => {
+      const host = (f.on && nodes.get(f.on)) || nearest(pool.length ? pool : [...nodes.values()], at);
+      const mate = f.mate ? nodes.get(f.mate) : undefined;
+      return { on: host.key, host, at, dir, mate: mate?.key, twist: f.twist, hole: f.kind === "nail" || f.kind === "glide" || f.kind === "clip" ? false : undefined };
+    });
+    return [{ def: defFor(f), fits }];
+  }
   const count = Math.min(48, Math.max(1, Math.round(f.count)));
   const to = new Set(f.to ?? []);
   const pick = to.size ? contacts.filter((c) => to.has(c.a.id) || to.has(c.b.id)) : contacts;
@@ -478,7 +617,8 @@ function planFits(f: CustomFix, contacts: Contact[], fresh: Node[], placed: Node
       }
       break;
     }
-    case "bracket": {
+    case "bracket":
+    case "strap": {
       const top = [...placed, ...fresh].reduce<Node | null>((a, n) => (!a || n.box.max[1] > a.box.max[1] ? n : a), null);
       if (top) {
         const n = Math.min(count, ext(top.box, 0) > 1000 ? 2 : 1);
@@ -512,21 +652,25 @@ function planFits(f: CustomFix, contacts: Contact[], fresh: Node[], placed: Node
   return fits.length ? [{ def: defFor(f), fits }] : [];
 }
 
+const STACKS: HwKind[] = ["washer", "nut", "cap", "clamp"];
+
 /** Emit fittings, nudging any that would sit on top of one placed earlier. */
 function emit(b: PlanBuilder, groups: Group[], used: Vec3[]) {
   const total = groups.reduce((s, g) => s + g.fits.length, 0);
   for (const g of groups) {
-    const list: FitOpts[] = g.fits.map(({ host: _host, slide, ...o }) => {
-      void _host;
+    const list: FitOpts[] = g.fits.map(({ host, slide, ...o }) => {
       const at: Vec3 = [...o.at];
+      // moved along the joint, a fitting has to stay on the part it goes into
+      const onHost = (p: Vec3) => [0, 1, 2].every((k) => o.dir[k] !== 0 || (p[k] >= host.box.min[k] - 1 && p[k] <= host.box.max[k] + 1));
       const free = (p: Vec3) => used.every((u) => Math.hypot(u[0] - p[0], u[1] - p[1], u[2] - p[2]) > 22);
-      if (!free(at)) {
+      // washers, nuts and caps go on the bolt already there, so they share its point
+      if (!STACKS.includes(g.def.kind) && !free(at)) {
         const axis = slide !== undefined ? [slide] : [0, 1, 2].filter((k) => !o.dir[k]);
         search: for (const step of [36, -36, 72, -72]) {
           for (const k of axis) {
             const p: Vec3 = [...at];
             p[k] += step;
-            if (free(p)) {
+            if (free(p) && onHost(p)) {
               at[0] = p[0];
               at[1] = p[1];
               at[2] = p[2];
@@ -535,7 +679,8 @@ function emit(b: PlanBuilder, groups: Group[], used: Vec3[]) {
           }
         }
       }
-      used.push(at);
+      // a washer, nut or cap shares its bolt's point, so it never pushes the bolt listed after it off that point
+      if (!STACKS.includes(g.def.kind)) used.push(at);
       return { ...o, at };
     });
     b.fits(g.def, list, Math.min(0.07, 2.4 / Math.max(1, total)));
@@ -546,7 +691,7 @@ function emit(b: PlanBuilder, groups: Group[], used: Vec3[]) {
 function normalizeSteps(steps: CustomStep[], parts: CustomPart[]): CustomStep[] {
   const seen = new Set<string>();
   const ids = new Set(parts.map((p) => p.id));
-  const out: CustomStep[] = steps.slice(0, 40).map((s) => {
+  const out: CustomStep[] = steps.slice(0, 80).map((s) => {
     const add = (s.add ?? []).filter((id) => ids.has(id) && !seen.has(id));
     add.forEach((id) => seen.add(id));
     return { ...s, add };

@@ -1,7 +1,8 @@
 import type { HwItem, HwType, PartItem, PartType, ProductSpec, RowUnit, Step, Vec3 } from "../types";
-import { HW, PlanBuilder, type FitOpts } from "./builder";
+import { HW, PlanBuilder, defOf, type FitOpts } from "./builder";
 import { rotate, toLocal, toWorld } from "./math";
 import { slidingDoors } from "./sliding";
+import { jointFits, type RowOpts } from "./row";
 
 const UNIT: Record<string, [string, string]> = {
   bookcase: ["bookcase", "bookcases"],
@@ -13,6 +14,10 @@ const UNIT: Record<string, [string, string]> = {
 };
 const COUNT = ["", "", "two", "three", "four"];
 const SIZE = [[], [""], ["narrow", "wide"], ["narrow", "medium", "wide"], ["narrowest", "narrow", "wide", "widest"]];
+
+/** The row's unit a frame's spec was made for, so a family can tell the add-on corner unit from a plain frame. */
+const UNIT_OF = new WeakMap<ProductSpec, RowUnit>();
+export const unitOf = (s: ProductSpec): RowUnit | undefined => UNIT_OF.get(s);
 
 /** Where a frame stands: the middle of its footprint, and how far it is turned about the vertical. */
 interface Place {
@@ -57,7 +62,7 @@ interface Built {
 /** Takes the last step off when it fixes the frame to the wall: that waits until every frame stands in place. */
 function takeAnchor(b: PlanBuilder): Built["anchor"] {
   const last = b.steps[b.steps.length - 1];
-  if (last?.kind !== "anchor") return undefined;
+  if (!last || (last.kind !== "anchor" && !last.wall) || b.items.some((it) => it.kind === "part" && it.states.some((x) => x.step === last.n))) return undefined;
   const items = b.items.filter((it): it is HwItem => it.kind === "hw" && it.step === last.n);
   b.items = b.items.filter((it) => !(it.kind === "hw" && it.step === last.n));
   for (const it of items) b.map.delete(it.key);
@@ -72,7 +77,7 @@ function takeAnchor(b: PlanBuilder): Built["anchor"] {
  * Then they're pushed together (screwed to each other through their sides when IKEA joins them),
  * sliding doors go across when there are any, and every frame is fixed to the wall last.
  */
-export function buildUnits(b: PlanBuilder, s: ProductSpec, one: (b: PlanBuilder, s: ProductSpec) => void) {
+export function buildUnits(b: PlanBuilder, s: ProductSpec, one: (b: PlanBuilder, s: ProductSpec) => void, opts: RowOpts = {}) {
   const row = s.row!;
   const units: RowUnit[] = row.units!;
   const W = s.size.w * 10, D = s.size.d * 10, H = s.size.h * 10;
@@ -84,12 +89,16 @@ export function buildUnits(b: PlanBuilder, s: ProductSpec, one: (b: PlanBuilder,
   void r0;
   void c0;
   void s0;
-  const specOf = (u: RowUnit): ProductSpec => ({
-    ...rest,
-    size: { w: u.w, h: s.size.h, d: u.d ?? (slide ? s.size.d - 8 : s.size.d) },
-    ...(u.cabinet ? { cabinet: u.cabinet } : {}),
-    ...(u.shelf ? { shelf: u.shelf } : {}),
-  });
+  const specOf = (u: RowUnit): ProductSpec => {
+    const spec: ProductSpec = {
+      ...rest,
+      size: { w: u.w, h: s.size.h, d: u.d ?? (slide ? s.size.d - 8 : s.size.d) },
+      ...(u.cabinet ? { cabinet: u.cabinet } : {}),
+      ...(u.shelf ? { shelf: u.shelf } : {}),
+    };
+    UNIT_OF.set(spec, u);
+    return spec;
+  };
   const keyOf = (u: RowUnit) => JSON.stringify(specOf(u));
 
   // side by side from the left with their backs in line, unless the row says where each one stands
@@ -196,7 +205,7 @@ export function buildUnits(b: PlanBuilder, s: ProductSpec, one: (b: PlanBuilder,
       const key = frameParts[i].get(h.parent!);
       if (!key) continue;
       const f = b.partItem(key).final;
-      const k2 = b.preset({ kind: ht.kind, len: ht.len, dia: ht.dia, notIncluded: ht.notIncluded }, { on: key, at: toWorld(h.pos, f.pos, f.rot), dir: rotate(h.dir, f.rot), twist: h.twist, scale: h.scale, hole: false });
+      const k2 = b.preset(defOf(ht), { on: key, at: toWorld(h.pos, f.pos, f.rot), dir: rotate(h.dir, f.rot), twist: h.twist, scale: h.scale, hole: false });
       const c = b.map.get(k2) as HwItem;
       c.spin = h.spin;
       c.turn = h.turn;
@@ -217,7 +226,7 @@ export function buildUnits(b: PlanBuilder, s: ProductSpec, one: (b: PlanBuilder,
     let title: string, detail: string;
     if (u.corner) {
       title = "Build the corner unit";
-      detail = `The same way as a ${what}, without a clothes rail. Its shelves go on pins.`;
+      detail = "Every step of its own guide, lying down, then stand it up. Its shelves go on pins.";
     } else if (g.includes(first)) {
       title = k > 1 ? `Build ${COUNT[k]} more ${adj(u)}${whats} the same way` : `Build another ${adj(u)}${what} the same way`;
       detail = k > 1 ? "Every step as for the first one. Stand each one next to the last." : "Every step as for the first one. Stand it next to the first.";
@@ -248,6 +257,14 @@ export function buildUnits(b: PlanBuilder, s: ProductSpec, one: (b: PlanBuilder,
   const ys = (H > 1500 ? [0.12, 0.38, 0.62, 0.88] : H > 700 ? [0.2, 0.5, 0.8] : [0.3, 0.7]).map((f) => Math.round(H * f));
   const tOf = (key: string) => Math.min(...b.parts.find((p) => p.id === b.partItem(key).ref)!.size);
   const screws: FitOpts[] = [];
+  // a family's own joint between frames side by side, each kind of fitting in its own list
+  const joint = join ? opts.joint : undefined;
+  const jointLists: FitOpts[][] = (joint?.fits ?? []).map(() => []);
+  const frontOf = (key: string, axis: 0 | 2) => {
+    const p = b.parts.find((t) => t.id === b.partItem(key).ref)!;
+    return b.partItem(key).final.pos[axis] + Math.max(p.size[0], p.size[2]) / 2;
+  };
+  const addJoint = (a: string, c: string, at: Vec3, dir: Vec3) => jointFits(joint!, a, c, at, dir, tOf(a) + tOf(c)).forEach((f, i) => jointLists[i].push(f.o));
   if (join) {
     const backRun = units.map((u, i) => i).filter((i) => !units[i].turn && !units[i].corner).sort((a, c) => places[a].pos[0] - places[c].pos[0]);
     const sideRun = units.map((u, i) => i).filter((i) => units[i].turn && !units[i].corner).sort((a, c) => places[a].pos[2] - places[c].pos[2]);
@@ -258,7 +275,8 @@ export function buildUnits(b: PlanBuilder, s: ProductSpec, one: (b: PlanBuilder,
       if (!a || !c) continue;
       const xj = places[l].pos[0] + (units[l].w * 10) / 2 - tOf(a);
       const zf = -D / 2 + Math.min(depth(l), depth(r)) - 60;
-      for (const y of ys) screws.push({ on: a, at: [xj, y, zf], dir: [1, 0, 0], mate: c });
+      if (joint) for (const y of joint.ys(H)) addJoint(a, c, [xj, y, Math.min(frontOf(a, 2), frontOf(c, 2)) - joint.back], [1, 0, 0]);
+      else for (const y of ys) screws.push({ on: a, at: [xj, y, zf], dir: [1, 0, 0], mate: c });
     }
     for (let k = 0; k + 1 < sideRun.length; k++) {
       const [l, r] = [sideRun[k], sideRun[k + 1]];
@@ -266,28 +284,27 @@ export function buildUnits(b: PlanBuilder, s: ProductSpec, one: (b: PlanBuilder,
       if (!a || !c) continue;
       const zj = places[l].pos[2] + (units[l].w * 10) / 2 - tOf(a);
       const xf = -W / 2 + Math.min(depth(l), depth(r)) - 60;
-      for (const y of ys) screws.push({ on: a, at: [xf, y, zj], dir: [0, 0, 1], mate: c });
+      if (joint) for (const y of joint.ys(H)) addJoint(a, c, [Math.min(frontOf(a, 0), frontOf(c, 0)) - joint.back, y, zj], [0, 0, 1]);
+      else for (const y of ys) screws.push({ on: a, at: [xf, y, zj], dir: [0, 0, 1], mate: c });
     }
-    // the corner unit: screwed to the side of the first frame along the back wall, and to the first one on the side wall
+    // the corner unit: its own joining brackets hold it to the first frame along the back wall (they're in its own
+    // steps); here it's screwed to the first one on the side wall
     const cu = units.findIndex((u) => u.corner);
     if (cu >= 0) {
-      const cz0 = places[cu].pos[2] - (units[cu].w * 10) / 2, cz1 = cz0 + units[cu].w * 10;
+      const cz1 = places[cu].pos[2] + (units[cu].w * 10) / 2;
       const cx1 = -W / 2 + depth(cu);
-      const b0 = backRun[0];
-      const bl = b0 !== undefined ? extreme(b0, 0, false) : undefined;
-      const zb1 = -D / 2 + (b0 !== undefined ? depth(b0) : 0);
-      if (bl && zb1 - cz0 > 80) for (const y of ys) screws.push({ on: bl, at: [b.partItem(bl).final.pos[0] + tOf(bl) / 2, y, (cz0 + zb1) / 2], dir: [-1, 0, 0], hole: false });
       const s0 = sideRun[0];
       const cs = extreme(cu, 2, true), fs = s0 !== undefined ? extreme(s0, 2, false) : undefined;
       if (cs && fs) for (const y of ys) screws.push({ on: cs, at: [Math.min(cx1, -W / 2 + depth(s0)) - 60, y, cz1 - tOf(cs)], dir: [0, 0, 1], mate: fs });
     }
   }
-  const glue = screws.length > 0;
+  const ownJoint = jointLists.some((l) => l.length > 0);
+  const glue = screws.length > 0 || ownJoint;
   b.step(
     {
-      title: corner ? (glue ? "Stand them in the corner and screw them together" : "Stand them in the corner") : glue ? "Push them together and screw them to each other" : "Push them together",
-      detail: glue ? "Line up the fronts and the tops, then screw through the sides." : "Line up the fronts and the tops, side by side against the wall.",
-      tools: glue ? ["screwdriver"] : [],
+      title: ownJoint && !corner ? joint!.title : corner ? (glue ? "Stand them in the corner and screw them together" : "Stand them in the corner") : glue ? "Push them together and screw them to each other" : "Push them together",
+      detail: ownJoint ? joint!.detail : glue ? "Line up the fronts and the tops, then screw through the sides." : "Line up the fronts and the tops, side by side against the wall.",
+      tools: ownJoint ? joint!.tools : glue ? ["screwdriver"] : [],
       people: 2,
       kind: "join",
       warnings: ["two"],
@@ -298,7 +315,15 @@ export function buildUnits(b: PlanBuilder, s: ProductSpec, one: (b: PlanBuilder,
       for (const list of added) for (const key of list) b.add(key);
       if (!glue) return;
       b.then(0.15);
-      b.fits(HW.screwM, screws, 0.08);
+      jointLists.forEach((list, i) => {
+        if (!list.length) return;
+        if (i) b.then(0.05);
+        b.fits(joint!.fits[i].def, list, 0.08);
+      });
+      if (screws.length) {
+        if (ownJoint) b.then(0.05);
+        b.fits(HW.screwM, screws, 0.08);
+      }
     },
   );
 
@@ -312,7 +337,7 @@ export function buildUnits(b: PlanBuilder, s: ProductSpec, one: (b: PlanBuilder,
     if (!src.anchor) return;
     for (const h of src.anchor.items) {
       const ht = src.hw.get(h.ref)!;
-      const def = { kind: ht.kind, len: ht.len, dia: ht.dia, notIncluded: ht.notIncluded };
+      const def = defOf(ht);
       if (h.parent) {
         // fittings sit on their part, wherever the part now stands
         const key = frameParts[i].get(h.parent);

@@ -202,23 +202,29 @@ export function buildTable(b: PlanBuilder, s: ProductSpec) {
   } else if (p.shelf) {
     const shT = b.part("Shelf", [W - 2 * ls - 2, 16, D], { material: "board" });
     const sy = Math.max(110, H * 0.26);
-    const shelf = b.place(shT, [0, sy, 0]);
+    // a trolley's tiers: the lowest near the floor, the rest shared out evenly up to the top
+    const n = clamp(Math.round(s.table?.levels ?? 1), 1, 4);
+    const gap = n > 1 ? (H - tt - sy) / n : 0;
+    const ys = Array.from({ length: n }, (_, i) => sy + gap * i);
+    const shelves = ys.map((y) => b.place(shT, [0, y, 0]));
     b.step(
       {
-        title: "Fit the shelf between the legs",
+        title: n > 1 ? `Fit the ${n} shelves between the legs` : "Fit the shelf between the legs",
         detail: "Two screws through each leg.",
         tools: ["screwdriver"],
         pose: "-y",
         kind: "screws",
       },
       () => {
-        b.add(shelf, [0, -320, 0]);
+        b.stagger(0.18);
+        shelves.forEach((k) => b.add(k, [0, -320, 0]));
         b.then(0.1);
         const sc: FitOpts[] = [];
-        corners.forEach(([sx, sz], i) => {
-          for (const dz of [-ls / 5, ls / 5]) sc.push({ on: legs[i], at: [sx * (W / 2), sy, sz * lz + dz], dir: [-sx, 0, 0], hole: false });
-        });
-        b.fits(HW.screwL, sc, 0.06);
+        for (const y of ys)
+          corners.forEach(([sx, sz], i) => {
+            for (const dz of [-ls / 5, ls / 5]) sc.push({ on: legs[i], at: [sx * (W / 2), y, sz * lz + dz], dir: [-sx, 0, 0], hole: false });
+          });
+        b.fits(HW.screwL, sc, n > 1 ? 0.03 : 0.06);
       },
     );
   }

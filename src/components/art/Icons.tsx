@@ -25,6 +25,7 @@ import {
   Library,
   ListFilter,
   Lock,
+  MessageSquareText,
   Mic,
   Package,
   Pause,
@@ -119,6 +120,7 @@ export const IImage = icon(Image);
 export const IDoc = icon(FileText);
 export const ILock = icon(Lock);
 export const IBed = icon(BedDouble);
+export const IFeedback = icon(MessageSquareText);
 
 /** An outbound arrow that slides out and back in when its link is hovered. */
 export function IArrowOut({ size = 14, className }: P) {

@@ -52,6 +52,7 @@ export interface TableParams {
   frame?: number; // cm: a low desk whose top sits between two storage frames this wide (TROFAST)
   boxes?: number; // boxes in each of those frames
   shelvesIn?: boolean; // shelves in the frames instead of boxes
+  levels?: number; // shelves under the top, evenly up the legs (a trolley's tiers); one when it isn't set
   riser?: boolean; // a laptop or monitor stand: a top on two side panels
   rack?: number; // cm: a rack rising from the back of the top, two posts and a rail with hooks (size.h takes it in)
   seat?: boolean; // a bench or stool built like a table: the top is its seat
@@ -153,8 +154,16 @@ export interface SofaParams {
   reach?: number; // cm, how far a U-shaped sofa's chaise longue reaches forward (with both corner and chaise set)
   foot?: boolean; // an armchair that comes with its footstool, built after it and stood in front of it
   pouffe?: boolean; // a pouffe or footstool on its own: a padded block on four legs
+  round?: boolean; // a pouffe: a padded drum instead of a block
   bed?: boolean; // a chair-bed: it folds out into a bed
   table?: number; // cm: a side table module at the right-hand end (size.w takes it in)
+  // IKEA's own measurements, in cm, where the product has them (see src/lib/plan/sofaDims.ts)
+  seatH?: number; // top of the seat cushions
+  seatD?: number; // how deep the seat is, from the back cushions to the front edge
+  armH?: number; // top of the armrests
+  armW?: number; // how wide each armrest is
+  backH?: number; // top of the backrest frame, under the back cushions
+  legH?: number; // room under the frame
 }
 
 /** A product read from someone's own manual: parts as boxes in the assembled product, steps that add them. */
@@ -166,6 +175,9 @@ export interface CustomPart {
   pos: Vec3; // mm, centre of the part; y up from the floor, x left to right, z back to front
   shape?: "box" | "cyl";
   material?: PartMaterial;
+  rot?: Vec3; // radians, when it doesn't sit square (a leaning back, a splayed leg); size is before turning
+  pieces?: PartPiece[]; // drawn as these boxes and cylinders (positions from pos) instead of one box of size
+  extra?: boolean; // not in the box (a mattress, the wall)
 }
 
 export interface CustomFix {
@@ -174,6 +186,15 @@ export interface CustomFix {
   len?: number;
   dia?: number;
   to?: string[]; // parts it goes into, when the manual says
+  name?: string; // its own name when the kind's general one doesn't fit
+  included?: boolean; // wall plugs and screws that come in the box (they're marked not included otherwise)
+  // exactly where each one goes, when the joint finder would guess wrong: points in the finished product (mm),
+  // the way each one goes in, the part it sits in and the part its other end goes into
+  at?: Vec3[];
+  dir?: Vec3;
+  on?: string;
+  mate?: string;
+  twist?: number; // radians about the way it goes in (an angle bracket's tab lying flat)
 }
 
 export interface CustomStep {
@@ -185,6 +206,12 @@ export interface CustomStep {
   people?: 1 | 2;
   pose?: Pose;
   warnings?: WarnId[];
+  from?: Record<string, Vec3>; // part id -> offset it arrives from (mm), when the guess isn't right
+  wait?: string[]; // parts that take fittings in this step but are joined in a later one: shown beside the build until then
+  repeat?: number; // "do this twice": the same step for the other side
+  kind?: StepKind;
+  check?: "square";
+  wall?: boolean;
 }
 
 export interface CustomParams {
@@ -258,11 +285,13 @@ export interface RowUnit {
 
 /* ---------- generated plan ---------- */
 
-export type PartMaterial = "board" | "fiber" | "wood" | "metal" | "soft";
+export type PartMaterial = "board" | "fiber" | "wood" | "metal" | "soft" | "glass";
 
 /** One box or cylinder of a part made of several (a star base, a cot side with bars), in the part's own frame. */
 export interface PartPiece {
-  shape: "box" | "cyl";
+  shape: "box" | "cyl" | "halfcyl" | "slab"; // halfcyl: half a disc, [dia, thickness, dia / 2], flat edge at the back (-z)
+  outline?: [number, number][]; // slab: its corners as [x, z] (mm, from pos), drawn as one board of size[1] thickness
+  round?: number; // slab: corner radius
   size: Vec3; // mm, box extents or cylinder [dia, length, dia]
   pos: Vec3; // mm, from the centre of the part
   rot?: Vec3;
@@ -303,7 +332,17 @@ export type HwKind =
   | "connector"
   | "roller"
   | "flatHinge"
-  | "hook";
+  | "hook"
+  | "clip"
+  | "strap"
+  | "nut"
+  | "washer"
+  | "stud"
+  | "clamp"
+  | "angle"
+  | "foot"
+  | "cap"
+  | "spacer";
 
 export interface HwType {
   id: string;

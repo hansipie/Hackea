@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import type { HwItem, PartItem, PartType, Plan, Step, Vec3 } from "@/lib/types";
+import type { HwItem, PartItem, PartState, PartType, Plan, Step, Vec3 } from "@/lib/types";
 import { POSE_EULER } from "@/lib/plan/math";
 import { Drawable, hwDrawable, partDrawable, wallDrawable } from "./drawable";
 import { INK, INK_OLD, TINT_NEW } from "./materials";
@@ -29,8 +29,12 @@ export interface StageOptions {
 }
 
 const easeOut = (x: number) => 1 - Math.pow(1 - x, 4);
+/** Parts coming in: quick to start, then a long soft landing with no visible stop. */
+const easeLand = (x: number) => 1 - Math.pow(1 - x, 3);
 const easeInOut = (x: number) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
 const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
+/** How long turning the model over takes: a quarter turn a little under a second, a half turn a little more. */
+const poseDur = (angle: number) => Math.min(1.2, Math.max(0.6, 0.45 + angle * 0.32));
 
 const PART_DUR = 0.95;
 const HW_DUR = 0.6;
@@ -111,8 +115,21 @@ export class Stage {
   camTarget = new THREE.Vector3();
   camHalf = 1000;
   camReady = false;
+  /** the view's own angles, gliding toward what the mode asks for, so a change of view never cuts */
+  camAz = 0.62;
+  camEl = 0.46;
+  /** seconds the turntable has been turning, so it starts from still instead of wherever the clock was */
+  turnT = 0;
   rootQ = new THREE.Quaternion();
   rootReady = false;
+  /** turning the model over between steps: a timed glide from where it was, so it starts and stops softly */
+  poseFrom = new THREE.Quaternion();
+  poseTo = new THREE.Quaternion();
+  poseT = 1;
+  poseDur = 0.8;
+  /** where each part and fitting was when the mode changed, so nothing caught mid-move jumps into place */
+  carry = new Map<THREE.Object3D, { p: THREE.Vector3; q: THREE.Quaternion }>();
+  carryT = 1;
   t = 0;
   last = 0;
   raf = 0;
@@ -146,6 +163,8 @@ export class Stage {
   constructor(el: HTMLElement, opts: StageOptions = {}) {
     this.el = el;
     this.opts = opts;
+    // a handle for checking motion by hand in development
+    if (process.env.NODE_ENV === "development" && !opts.offscreen) (window as unknown as { __stage?: Stage }).__stage = this;
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: !!opts.offscreen });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     this.renderer.setClearColor(0xffffff, 0);
@@ -213,6 +232,10 @@ export class Stage {
     }
   }
   private fallback = 0;
+  private frameDt = 1 / 60;
+  /** where each part starts and ends in the step being shown, worked out once per step instead of every frame */
+  private stepXf = new Map<PNode, { st: PartState; prev: PartState | null; fin: Xf; from: Xf | null; off: THREE.Vector3 }>();
+  private finalXf = new Map<PNode, Xf>();
 
   /* ---------------- setup ---------------- */
 
@@ -300,6 +323,8 @@ export class Stage {
     }
     this.computeExtents();
     this.computeArrangements();
+    this.finalXf.clear();
+    for (const p of this.parts) this.finalXf.set(p, { p: new THREE.Vector3(...p.item.final.pos), q: quatFromEuler(p.item.final.rot) });
     this.typeFirst.clear();
     this.introOrderCache.clear();
     for (const p of this.parts) {
@@ -311,6 +336,8 @@ export class Stage {
   }
 
   private clear() {
+    this.stepXf.clear();
+    this.finalXf.clear();
     for (const p of this.parts) {
       this.root.remove(p.node);
       disposeDrawable(p.d);
@@ -425,16 +452,29 @@ export class Stage {
 
   setMode(mode: StageMode, o: { instant?: boolean } = {}) {
     const prev = this.mode;
+    const poseBefore = this.targetPoseQ();
+    this.carry.clear();
+    if (!o.instant && this.rootReady) {
+      for (const p of this.parts) if (p.node.visible) this.carry.set(p.node, { p: p.node.position.clone(), q: p.node.quaternion.clone() });
+      for (const h of this.hws) if (h.holder.visible) this.carry.set(h.inner, { p: h.inner.position.clone(), q: h.inner.quaternion.clone() });
+      this.carryT = 0;
+    }
     this.mode = mode;
     this.t = o.instant ? 999 : 0;
+    // when the model turns over for this step, its parts wait until it has nearly finished turning
+    if (!o.instant && this.rootReady) {
+      const turn = poseBefore.angleTo(this.targetPoseQ());
+      if (turn > 0.1) this.t = -Math.min(0.75, poseDur(turn) * 0.7);
+    }
     this.loopCount = 0;
     this.autoReset = true;
     this.introDone = mode.kind !== "intro";
+    if (!(prev.kind === "assembled" && mode.kind === "assembled" && prev.turntable && mode.turntable)) this.turnT = 0;
     if (prev.kind === "step" && mode.kind === "step" && this.plan) {
       const a = this.plan.steps[prev.index]?.scene;
       const b = this.plan.steps[mode.index]?.scene;
       if (a !== b) this.flash();
-    } else if (prev.kind !== mode.kind && !o.instant) this.flash();
+    } else if (prev.kind !== mode.kind && !o.instant && !(prev.kind === "intro" && mode.kind === "assembled")) this.flash();
     this.prepareMode();
     if (o.instant) {
       this.camReady = false;
@@ -466,7 +506,8 @@ export class Stage {
 
   private flash() {
     const c = this.renderer.domElement;
-    c.animate([{ opacity: 0.15 }, { opacity: 1 }], { duration: 420, easing: "cubic-bezier(.2,.8,.2,1)" });
+    // a soft dip rather than a blink: enough to hide parts changing places, never a flash of empty paper
+    c.animate([{ opacity: 0.4 }, { opacity: 1 }], { duration: 460, easing: "cubic-bezier(.22,1,.36,1)" });
   }
 
   get step(): Step | null {
@@ -480,14 +521,23 @@ export class Stage {
     this.focus = undefined;
     this.frameLocal = [];
     this.cornerItems = 0;
+    this.stepXf.clear();
     const m = this.mode;
     if (m.kind === "step") {
       const s = m.index;
       const step = plan.steps[s];
       let end = 0;
       for (const p of this.parts) {
-        const { st } = this.stateAt(p, s);
+        const { st, prev } = this.stateAt(p, s);
         if (!st || st.scene !== step.scene) continue;
+        const moves = st.step === s && prev && prev.scene === st.scene;
+        this.stepXf.set(p, {
+          st,
+          prev,
+          fin: { p: new THREE.Vector3(...st.pos), q: quatFromEuler(st.rot) },
+          from: moves ? { p: new THREE.Vector3(...prev.pos), q: quatFromEuler(prev.rot) } : null,
+          off: st.from ? new THREE.Vector3(...st.from) : new THREE.Vector3(),
+        });
         this.frameLocal.push(...this.corners(p, st.pos, st.rot));
         if (st.step === s) end = Math.max(end, st.delay + PART_DUR + (st.spin ? 0.4 : 0));
       }
@@ -580,6 +630,7 @@ export class Stage {
   tick(dt: number) {
     if (!this.plan) return;
     if (!this.paused) this.t += dt * this.speed;
+    this.turnT += dt;
     const m = this.mode;
     if (m.kind === "step" && this.opts.loop !== false) {
       const cycle = this.stepEnd + HOLD + FADE;
@@ -593,10 +644,14 @@ export class Stage {
       this.opts.onIntroDone?.();
       this.mode = { kind: "assembled", turntable: true, dims: m.kind === "intro" && !!m.dims };
       this.t = 0;
+      this.turnT = 0;
       this.prepareMode();
     }
+    this.frameDt = dt;
+    if (this.carryT < 1) this.carryT = dt === 0 ? 1 : Math.min(1, this.carryT + dt / 0.42);
     this.updateRoot(dt);
     this.updateItems();
+    if (this.carryT < 1) this.blendCarry();
     this.updateCamera(dt);
   }
 
@@ -616,9 +671,20 @@ export class Stage {
     const q = this.targetPoseQ();
     if (!this.rootReady || dt === 0) {
       this.rootQ.copy(q);
+      this.poseTo.copy(q);
+      this.poseT = 1;
       this.rootReady = true;
     } else {
-      this.rootQ.slerp(q, 1 - Math.exp(-dt * 3.2));
+      if (this.poseTo.angleTo(q) > 1e-4) {
+        this.poseFrom.copy(this.rootQ);
+        this.poseTo.copy(q);
+        this.poseT = 0;
+        this.poseDur = poseDur(this.poseFrom.angleTo(q));
+      }
+      if (this.poseT < 1) {
+        this.poseT = Math.min(1, this.poseT + dt / this.poseDur);
+        this.rootQ.slerpQuaternions(this.poseFrom, this.poseTo, easeInOut(this.poseT));
+      } else this.rootQ.copy(q);
     }
     this.root.quaternion.copy(this.rootQ);
     // ground and centre
@@ -687,26 +753,25 @@ export class Stage {
       const hover = this.hovered === ref;
       const lit = hl?.has(ref) ?? false;
       if (m.kind === "step") {
-        const { st, prev } = this.stateAt(p, sIdx);
-        if (!st || st.scene !== scene) {
+        const x = this.stepXf.get(p);
+        if (!x) {
           node.visible = false;
           continue;
         }
+        const { st, fin } = x;
         node.visible = true;
         visibleParts.add(p);
         const isNew = st.step === sIdx;
-        const fin = { p: new THREE.Vector3(...st.pos), q: quatFromEuler(st.rot) };
         if (isNew) {
           const k = clamp01((t - st.delay) / (PART_DUR + (st.spin ? 0.4 : 0)));
-          const e = easeOut(k);
-          let op = clamp01((t - st.delay) / 0.22) * fadeOut;
-          if (prev && prev.scene === st.scene) {
-            node.position.lerpVectors(new THREE.Vector3(...prev.pos), fin.p, easeInOut(k));
-            node.quaternion.slerpQuaternions(quatFromEuler(prev.rot), fin.q, easeInOut(k));
+          const e = easeLand(k);
+          let op = easeOut(clamp01((t - st.delay) / 0.3)) * fadeOut;
+          if (x.from) {
+            node.position.lerpVectors(x.from.p, fin.p, easeInOut(k));
+            node.quaternion.slerpQuaternions(x.from.q, fin.q, easeInOut(k));
             op = 1;
           } else {
-            const from = st.from ? new THREE.Vector3(...st.from) : new THREE.Vector3();
-            node.position.copy(fin.p).addScaledVector(from, 1 - e);
+            node.position.copy(fin.p).addScaledVector(x.off, 1 - e);
             node.quaternion.copy(fin.q);
             if (st.spin) {
               tmpQ.setFromAxisAngle(Y, -(1 - e) * st.spin * Math.PI * 2);
@@ -729,14 +794,15 @@ export class Stage {
         const k = clamp01((t - delay) / PART_DUR);
         const e = easeInOut(k);
         const a = this.stack.get(p.item.key);
-        const fin = { p: new THREE.Vector3(...p.item.final.pos), q: quatFromEuler(p.item.final.rot) };
+        const fin = this.finalXf.get(p)!;
         if (a) {
           node.position.lerpVectors(a.p, fin.p, e);
           node.position.y += Math.sin(Math.PI * e) * 260;
           node.quaternion.slerpQuaternions(a.q, fin.q, e);
           this.styleDrawable(p.d, { opacity: 1, ink: true, tint: k > 0 && k < 1 ? 0.5 : 0, width: 1.9 });
         } else {
-          node.position.copy(fin.p).add(new THREE.Vector3(0, 400 * (1 - easeOut(k)), 0));
+          node.position.copy(fin.p);
+          node.position.y += 400 * (1 - easeOut(k));
           node.quaternion.copy(fin.q);
           this.styleDrawable(p.d, { opacity: clamp01((t - delay) / 0.3), ink: true, tint: 0, width: 1.9 });
         }
@@ -763,8 +829,9 @@ export class Stage {
       } else {
         node.visible = true;
         visibleParts.add(p);
-        node.position.set(...p.item.final.pos);
-        node.quaternion.copy(quatFromEuler(p.item.final.rot));
+        const fin = this.finalXf.get(p)!;
+        node.position.copy(fin.p);
+        node.quaternion.copy(fin.q);
         // ghost: the highlighted parts turn green, everything else fades to grey
         if (m.kind === "assembled" && m.ghost && hl) this.styleDrawable(p.d, lit ? { opacity: 1, ink: true, tint: 0.85, tintColor: TINT_SELECTED, width: 1.9 } : { opacity: 0.18, ink: false, tint: 0, width: 1.2 });
         else this.styleDrawable(p.d, { opacity: 1, ink: true, tint: hover || lit ? 0.6 : 0, width: 1.9 });
@@ -803,9 +870,19 @@ export class Stage {
     // wall
     if (this.wall) {
       const on = !!step?.wall;
-      this.wall.on += ((on ? 1 : 0) - this.wall.on) * 0.12;
+      this.wall.on += ((on ? 1 : 0) - this.wall.on) * (1 - Math.exp(-this.frameDt * 7.5));
       this.wall.node.visible = this.wall.on > 0.02;
       this.styleDrawable(this.wall.d, { opacity: this.wall.on * 0.9, ink: false, tint: 0, width: 1.2 });
+    }
+  }
+
+  /** Eases anything that was caught mid-move when the mode changed from where it was to where it now belongs. */
+  private blendCarry() {
+    const e = easeInOut(this.carryT);
+    for (const [obj, from] of this.carry) {
+      if (!obj.visible) continue;
+      obj.position.lerpVectors(from.p, obj.position, e);
+      obj.quaternion.slerpQuaternions(from.q, obj.quaternion.clone(), e);
     }
   }
 
@@ -831,22 +908,34 @@ export class Stage {
       az = this.mode.view.az;
       el = this.mode.view.el;
     }
-    if (this.mode.kind === "assembled" && this.mode.turntable) az += Math.sin(performance.now() / 1000 / 3.2) * 0.32;
+    // eases in from still, so the drawing never jumps when the turning starts
+    if (this.mode.kind === "assembled" && this.mode.turntable) az += Math.sin(this.turnT / 3.2) * 0.32 * easeInOut(clamp01(this.turnT / 2.5));
     if (this.mode.kind === "part") {
       az = 0.7;
       el = 0.5;
     }
-    return { az: az + this.userAz, el: Math.max(0.05, Math.min(1.45, el + this.userEl)) };
+    return { az, el };
   }
 
   private updateCamera(dt: number) {
+    {
+      const want = this.camAngles();
+      if (!this.camReady || dt === 0) {
+        this.camAz = want.az;
+        this.camEl = want.el;
+      } else {
+        const g = 1 - Math.exp(-dt * 5);
+        this.camAz += (want.az - this.camAz) * g;
+        this.camEl += (want.el - this.camEl) * g;
+      }
+    }
     if (this.autoReset && !this.dragging) {
       const k = dt === 0 ? 1 : 1 - Math.exp(-dt * 4);
       this.userAz += (0 - this.userAz) * k;
       this.userEl += (0 - this.userEl) * k;
       this.userZoom += (1 - this.userZoom) * k;
     }
-    const { az, el } = this.camAngles();
+    const az = this.camAz + this.userAz, el = Math.max(0.05, Math.min(1.45, this.camEl + this.userEl));
     const dir = new THREE.Vector3(Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el));
     const right = new THREE.Vector3().crossVectors(Y, dir).normalize();
     const up = new THREE.Vector3().crossVectors(dir, right).normalize();
@@ -1156,7 +1245,21 @@ export class Stage {
     const sz = Math.max(box.max.x - box.min.x, box.max.y - box.min.y);
     const off = sz * 0.07;
     const P = (x: number, y: number, z: number) => this.project(this.root.localToWorld(new THREE.Vector3(x, y, z)));
-    const line = (a: THREE.Vector3Tuple, b: THREE.Vector3Tuple, o: THREE.Vector3Tuple, label: string, side: number) => {
+    // three dimension lines, each an extension path, the line with its arrow heads and a label: made once, then
+    // only their attributes change as the turntable turns (no new markup every frame)
+    if (this.dimsEl.childElementCount !== 9) {
+      this.dimsEl.innerHTML = "";
+      for (let i = 0; i < 3; i++) {
+        for (const cls of ["ext", "dim"]) {
+          const el = document.createElementNS(ns, "path");
+          el.setAttribute("class", cls);
+          this.dimsEl.appendChild(el);
+        }
+        this.dimsEl.appendChild(document.createElementNS(ns, "text"));
+      }
+    }
+    const kids = this.dimsEl.children;
+    const line = (i: number, a: THREE.Vector3Tuple, b: THREE.Vector3Tuple, o: THREE.Vector3Tuple, label: string, side: number) => {
       const a0 = P(...a), b0 = P(...b);
       const a1 = P(a[0] + o[0], a[1] + o[1], a[2] + o[2]), b1 = P(b[0] + o[0], b[1] + o[1], b[2] + o[2]);
       const mx = (a1.x + b1.x) / 2, my = (a1.y + b1.y) / 2;
@@ -1166,14 +1269,21 @@ export class Stage {
       const head = (x: number, y: number, s2: number) => `M${x + s2 * ux * h + uy * h * 0.55} ${y + s2 * uy * h - ux * h * 0.55} L${x} ${y} L${x + s2 * ux * h - uy * h * 0.55} ${y + s2 * uy * h + ux * h * 0.55}`;
       const ext = `M${a0.x} ${a0.y} L${a1.x + (a1.x - a0.x) * 0.25} ${a1.y + (a1.y - a0.y) * 0.25} M${b0.x} ${b0.y} L${b1.x + (b1.x - b0.x) * 0.25} ${b1.y + (b1.y - b0.y) * 0.25}`;
       const lx = mx - uy * 16 * side, ly = my + ux * 16 * side;
-      return `<path class="ext" d="${ext}" style="opacity:${k * 0.6}"/><path class="dim" d="M${ax} ${ay} L${bx} ${by} ${k > 0.98 ? head(a1.x, a1.y, 1) + head(b1.x, b1.y, -1) : ""}"/><text x="${lx}" y="${ly + 5}" style="opacity:${clamp01((k - 0.6) / 0.4)}">${label}</text>`;
+      const [e, d, t] = [kids[i * 3], kids[i * 3 + 1], kids[i * 3 + 2]] as SVGElement[];
+      e.setAttribute("d", ext);
+      e.style.opacity = String(k * 0.6);
+      // the arrow heads grow in with the line instead of popping on at the end
+      const hs = clamp01((k - 0.85) / 0.15);
+      d.setAttribute("d", `M${ax} ${ay} L${bx} ${by} ${hs > 0 ? head(ax, ay, hs) + head(bx, by, -hs) : ""}`);
+      t.setAttribute("x", String(lx));
+      t.setAttribute("y", String(ly + 5));
+      t.style.opacity = String(clamp01((k - 0.6) / 0.4));
+      if (t.textContent !== label) t.textContent = label;
     };
     const { min, max } = box;
-    let html = "";
-    html += line([min.x, min.y, max.z], [max.x, min.y, max.z], [0, -off * 0.2, off], `${Math.round(size.w)} cm`, 1);
-    html += line([max.x, min.y, max.z], [max.x, min.y, min.z], [off, -off * 0.2, 0], `${Math.round(size.d)} cm`, 1);
-    html += line([min.x, min.y, max.z], [min.x, max.y, max.z], [-off, 0, off * 0.3], `${Math.round(size.h)} cm`, -1);
-    if (this.dimsEl.innerHTML !== html) this.dimsEl.innerHTML = html;
+    line(0, [min.x, min.y, max.z], [max.x, min.y, max.z], [0, -off * 0.2, off], `${Math.round(size.w)} cm`, 1);
+    line(1, [max.x, min.y, max.z], [max.x, min.y, min.z], [off, -off * 0.2, 0], `${Math.round(size.d)} cm`, 1);
+    line(2, [min.x, min.y, max.z], [min.x, max.y, max.z], [-off, 0, off * 0.3], `${Math.round(size.h)} cm`, -1);
     this.dimsEl.style.opacity = "1";
   }
 

@@ -329,6 +329,83 @@ function draw(kind: HwKind, len: number, dia: number): Drawn {
           </g>
         ),
       };
+    case "clip":
+      // side on: the flat head on the left, the stem with its barbs
+      return {
+        w: 18,
+        h: dia,
+        scalable: true,
+        node: (
+          <g>
+            <rect x={0} y={-dia / 2} width={3.5} height={dia} rx={1} fill={PLASTIC} {...stroke} />
+            <path d="M3.5 -2.6 H14 L18 0 L14 2.6 H3.5 Z" fill={PLASTIC} {...stroke} />
+            <path d="M8 -2.6 L10 -4 M12 -2.6 L14 -4 M8 2.6 L10 4 M12 2.6 L14 4" fill="none" {...fine} />
+          </g>
+        ),
+      };
+    case "strap":
+      return {
+        w: len,
+        h: dia,
+        scalable: true,
+        node: (
+          <g>
+            <rect x={0} y={-dia / 2} width={len} height={dia} rx={4} fill={PLASTIC} {...stroke} />
+            {[10, len - 10].map((x) => (
+              <circle key={x} cx={x} cy={0} r={2.6} fill="#fff" {...stroke} />
+            ))}
+          </g>
+        ),
+      };
+    case "nut": {
+      const R = dia * 0.95;
+      const pts = [0, 1, 2, 3, 4, 5].map((k) => `${R + R * Math.cos((k * Math.PI) / 3)},${R * Math.sin((k * Math.PI) / 3)}`).join(" ");
+      return { w: R * 2, h: R * 1.8, scalable: true, node: <g><polygon points={pts} fill={METAL} {...stroke} /><circle cx={R} cy={0} r={dia / 2} fill="#fff" {...stroke} /></g> };
+    }
+    case "washer":
+      return { w: dia, h: dia, scalable: true, node: <g><circle cx={dia / 2} cy={0} r={dia / 2} fill={METAL} {...stroke} /><circle cx={dia / 2} cy={0} r={dia / 5} fill="#fff" {...stroke} /></g> };
+    case "stud":
+      return {
+        w: len,
+        h: dia * 1.25,
+        scalable: true,
+        node: (
+          <g>
+            <path d={thread(3, len, (dia / 2) * 0.8, 1.4)} fill={METAL} {...stroke} />
+            <rect x={0} y={(-dia * 1.25) / 2} width={3} height={dia * 1.25} rx={1} fill={METAL} {...stroke} />
+          </g>
+        ),
+      };
+    case "clamp":
+      return { w: len, h: 10, scalable: true, node: <path d={`M0 -5 V5 H${len} V-5 H${len - 2.5} V2.5 H2.5 V-5 Z`} fill={METAL} {...stroke} /> };
+    case "angle":
+      return {
+        w: len,
+        h: len,
+        scalable: true,
+        node: (
+          <g transform={`translate(0 ${-len / 2})`}>
+            <path d={`M0 0 H2.5 V${len - 2.5} H${len} V${len} H0 Z`} fill={METAL} {...stroke} />
+            <circle cx={len * 0.6} cy={len - 1.2} r={0.9} fill="#fff" {...fine} />
+          </g>
+        ),
+      };
+    case "foot":
+      return {
+        w: len + 14,
+        h: dia,
+        scalable: true,
+        node: (
+          <g>
+            <path d={thread(0, 14, 4, 1.6)} fill={METAL} {...stroke} />
+            <rect x={14} y={-dia / 2} width={len} height={dia} rx={3} fill={PLASTIC} {...stroke} />
+          </g>
+        ),
+      };
+    case "spacer":
+      return { w: len, h: dia, scalable: true, node: <rect x={0} y={-dia / 2} width={len} height={dia} rx={2} fill={PLASTIC} {...stroke} /> };
+    case "cap":
+      return { w: dia, h: dia, scalable: true, node: <g><circle cx={dia / 2} cy={0} r={dia / 2} fill={PLASTIC} {...stroke} /><circle cx={dia / 2} cy={0} r={dia / 2 - 2} fill="none" {...fine} /></g> };
     case "gasLift":
       // lying down: the narrow end that drops into the base on the left, the rod for the seat on the right
       return {

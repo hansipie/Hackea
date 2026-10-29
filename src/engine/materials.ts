@@ -11,6 +11,8 @@ export const FACE: Record<string, THREE.Color> = {
   wood: new THREE.Color("#fdfaf4"),
   metal: new THREE.Color("#eceef0"),
   soft: new THREE.Color("#f6f6f4"),
+  // a cool pale tint, so glass doors, shelves and mirrors read apart from the white boards
+  glass: new THREE.Color("#e9f1f4"),
   hwMetal: new THREE.Color("#dfe1e3"),
   hwWood: new THREE.Color("#f1e2c3"),
   hwPlastic: new THREE.Color("#f4f4f2"),

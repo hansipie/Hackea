@@ -1,5 +1,5 @@
-import type { HwItem, PartItem, ProductSpec, Step, Vec3 } from "../types";
-import { HW, PlanBuilder, type FitOpts } from "./builder";
+import type { HwItem, PartItem, ProductSpec, Step, ToolId, Vec3 } from "../types";
+import { HW, PlanBuilder, defOf, type FitOpts, type HwDef } from "./builder";
 import { clamp, rotate, toWorld } from "./math";
 import { slidingDoors } from "./sliding";
 
@@ -13,12 +13,41 @@ const UNIT: Record<string, [string, string]> = {
 const COUNT = ["", "", "two", "three", "four"];
 
 /**
+ * How a family's manual joins two frames standing side by side, when it isn't the usual screws through the sides
+ * at three or four heights (PAX: a connecting screw from one frame and a barrel nut from the other, near the top
+ * and near the bottom).
+ */
+export interface RowJoint {
+  ys: (H: number) => number[]; // heights of the joints, mm from the floor; H is the row's height
+  back: number; // mm back from the front edges of the sides
+  fits: { def: HwDef; far?: boolean }[]; // what goes in at each joint, in order; far ones go in from the next frame
+  title: string;
+  detail: string;
+  tools: ToolId[];
+}
+
+/** What a family can change about how the row code puts its frames together. */
+export interface RowOpts {
+  joint?: RowJoint;
+}
+
+/** The fittings of one joint between a side (`a`) and the side of the next frame along (`c`), `a`'s inner face at `at`. */
+export function jointFits(j: RowJoint, a: string, c: string, at: Vec3, dir: Vec3, thick: number) {
+  return j.fits.map(({ def, far }) => {
+    const o: FitOpts = far
+      ? { on: c, at: [at[0] + dir[0] * thick, at[1], at[2] + dir[2] * thick], dir: [-dir[0], -dir[1], -dir[2]], hole: false }
+      : { on: a, at, dir, mate: c };
+    return { def, o };
+  });
+}
+
+/**
  * Several identical frames side by side (two BILLY bookcases, two BESTÅ TV benches, a row of PAX wardrobes).
  * The first is built step by step exactly as its own guide does, the others the same way off to the side;
  * then they're pushed together (and screwed to each other through their sides when IKEA joins them),
  * and fixed to the wall last, every one of them.
  */
-export function buildRow(b: PlanBuilder, s: ProductSpec, one: (b: PlanBuilder, s: ProductSpec) => void) {
+export function buildRow(b: PlanBuilder, s: ProductSpec, one: (b: PlanBuilder, s: ProductSpec) => void, opts: RowOpts = {}) {
   const n = clamp(Math.round(s.row?.n ?? 2), 2, 4);
   const join = !!s.row?.join;
   const W = s.size.w * 10, H = s.size.h * 10;
@@ -34,7 +63,7 @@ export function buildRow(b: PlanBuilder, s: ProductSpec, one: (b: PlanBuilder, s
   // the first one's wall fixing waits until they all stand together
   let anchor: { def: Step; items: HwItem[] } | undefined;
   const lastStep = b.steps[b.steps.length - 1];
-  if (lastStep?.kind === "anchor") {
+  if (lastStep && (lastStep.kind === "anchor" || lastStep.wall) && !b.items.some((it) => it.kind === "part" && it.states.some((x) => x.step === lastStep.n))) {
     const items = b.items.filter((it): it is HwItem => it.kind === "hw" && it.step === lastStep.n);
     b.items = b.items.filter((it) => !(it.kind === "hw" && it.step === lastStep.n));
     for (const it of items) b.map.delete(it.key);
@@ -83,7 +112,7 @@ export function buildRow(b: PlanBuilder, s: ProductSpec, one: (b: PlanBuilder, s
           const ht = b.hw.get(h.ref)!;
           const key = copies.get(h.parent!)![k - 1];
           const f = b.partItem(key).final;
-          const k2 = b.preset({ kind: ht.kind, len: ht.len, dia: ht.dia, notIncluded: ht.notIncluded }, { on: key, at: toWorld(h.pos, f.pos, f.rot), dir: rotate(h.dir, f.rot), twist: h.twist, scale: h.scale, hole: false });
+          const k2 = b.preset(defOf(ht), { on: key, at: toWorld(h.pos, f.pos, f.rot), dir: rotate(h.dir, f.rot), twist: h.twist, scale: h.scale, hole: false });
           const c = b.map.get(k2) as HwItem;
           c.spin = h.spin;
           c.turn = h.turn;
@@ -99,11 +128,12 @@ export function buildRow(b: PlanBuilder, s: ProductSpec, one: (b: PlanBuilder, s
   const left = sides.reduce<PartItem | undefined>((a, it) => (!a || it.final.pos[0] < a.final.pos[0] ? it : a), undefined);
   const right = sides.reduce<PartItem | undefined>((a, it) => (!a || it.final.pos[0] > a.final.pos[0] ? it : a), undefined);
   const screws = join && left && right && left !== right;
+  const joint = screws ? opts.joint : undefined;
   b.step(
     {
-      title: screws ? "Push them together and screw them to each other" : "Push them together",
-      detail: screws ? "Line up the fronts and the tops, then screw through the sides." : "Line up the fronts and the tops, side by side against the wall.",
-      tools: screws ? ["screwdriver"] : [],
+      title: joint ? joint.title : screws ? "Push them together and screw them to each other" : "Push them together",
+      detail: joint ? joint.detail : screws ? "Line up the fronts and the tops, then screw through the sides." : "Line up the fronts and the tops, side by side against the wall.",
+      tools: joint ? joint.tools : screws ? ["screwdriver"] : [],
       people: 2,
       kind: "join",
       warnings: ["two"],
@@ -115,6 +145,19 @@ export function buildRow(b: PlanBuilder, s: ProductSpec, one: (b: PlanBuilder, s
       if (!screws) return;
       b.then(0.15);
       const t = b.parts.find((p) => p.id === right.ref)!.size[0];
+      if (joint) {
+        // the joint's own fittings, set back from the sides' front edges, one kind after the other
+        const depth = b.parts.find((p) => p.id === right.ref)!.size[2];
+        const zf = right.final.pos[2] + depth / 2 - joint.back;
+        const each = Array.from({ length: n - 1 }, (_, k) => k).flatMap((k) =>
+          joint.ys(H).map((y) => jointFits(joint, frameOf(right.key, k), frameOf(left.key, k + 1), [-W / 2 + (k + 1) * uw - t, y, zf], [1, 0, 0], 2 * t)),
+        );
+        joint.fits.forEach(({ def }, i) => {
+          if (i) b.then(0.05);
+          b.fits(def, each.map((f) => f[i].o), 0.08);
+        });
+        return;
+      }
       const ys = (H > 1500 ? [0.12, 0.38, 0.62, 0.88] : H > 700 ? [0.2, 0.5, 0.8] : [0.3, 0.7]).map((f) => Math.round(H * f));
       const list: FitOpts[] = [];
       for (let k = 0; k < n - 1; k++) {
@@ -137,7 +180,7 @@ export function buildRow(b: PlanBuilder, s: ProductSpec, one: (b: PlanBuilder, s
         b.stagger(0.12);
         for (const h of a.items) {
           const ht = b.hw.get(h.ref)!;
-          const def = { kind: ht.kind, len: ht.len, dia: ht.dia, notIncluded: ht.notIncluded };
+          const def = defOf(ht);
           for (let k = 0; k < n; k++) {
             if (h.parent) {
               const key = frameOf(h.parent, k);

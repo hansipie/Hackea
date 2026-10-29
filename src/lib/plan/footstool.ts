@@ -5,14 +5,16 @@ import { PlanBuilder } from "./builder";
  * A padded footstool on four legs: turned upside down, the legs screwed in by hand, and stood up. Sold on its own as a
  * pouffe, or with an armchair, when it's built after the chair and stood in front of it.
  */
-export function footstool(b: PlanBuilder, o: { w: number; h: number; d: number; z?: number; alone?: boolean }) {
+export function footstool(b: PlanBuilder, o: { w: number; h: number; d: number; z?: number; alone?: boolean; round?: boolean }) {
   const { w, h, d } = o;
-  const legH = Math.min(120, h * 0.3);
+  // a round pouffe stands low on short feet; a footstool on proper legs
+  const legH = o.round ? Math.min(40, h * 0.1) : Math.min(120, h * 0.3);
   const z = o.z ?? 0;
-  const padT = b.part(o.alone ? "Seat" : "Footstool", [w, h - legH, d], { material: "soft" });
+  const padT = b.part(o.alone ? "Seat" : "Footstool", [w, h - legH, d], { material: "soft", ...(o.round ? { shape: "cyl" as const } : {}) });
   const pad = b.place(padT, [0, legH + (h - legH) / 2, z]);
   const legT = b.part(o.alone ? "Leg" : "Footstool leg", [36, legH, 36], { shape: "cyl", material: "wood" });
-  const lx = w / 2 - 60, lz = d / 2 - 60;
+  // on a drum the feet sit inside its round edge
+  const lx = o.round ? w * 0.3 : w / 2 - 60, lz = o.round ? d * 0.3 : d / 2 - 60;
   const legs = [
     [-lx, lz],
     [lx, lz],
@@ -77,5 +79,5 @@ export function footstool(b: PlanBuilder, o: { w: number; h: number; d: number; 
 
 /** A pouffe or footstool sold on its own. */
 export function buildPouffe(b: PlanBuilder, s: ProductSpec) {
-  footstool(b, { w: s.size.w * 10, h: s.size.h * 10, d: s.size.d * 10, alone: true });
+  footstool(b, { w: s.size.w * 10, h: s.size.h * 10, d: s.size.d * 10, alone: true, round: s.sofa?.round });
 }

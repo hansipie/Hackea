@@ -90,6 +90,7 @@ const MAT_COLOR: Record<string, THREE.Color> = {
   wood: FACE.wood,
   metal: FACE.metal,
   soft: FACE.soft,
+  glass: FACE.glass,
 };
 
 export function partDrawable(p: PartType, holes: Hole[]) {
@@ -102,7 +103,9 @@ export function partDrawable(p: PartType, holes: Hole[]) {
       const mat = q.material ?? p.material;
       const c = MAT_COLOR[mat] ?? FACE.board;
       const at = { position: q.pos, rotation: q.rot };
-      if (q.shape === "cyl") addSolid(d, `cyl:${qx}:${qy}`, () => new THREE.CylinderGeometry(qx / 2, qx / 2, qy, 32), c, { hull: "cyl", ...at });
+      if (q.shape === "slab" && q.outline?.length) addSolid(d, `slab:${qy}:${q.round ?? 0}:${q.outline.flat().map(Math.round).join(",")}`, () => slab(q.outline!, qy, q.round ?? 0), c, { hull: "radial", ...at });
+      else if (q.shape === "halfcyl") addSolid(d, `hcyl:${qx}:${qy}`, () => halfDisc(qx, qy), c, { hull: "radial", ...at });
+      else if (q.shape === "cyl") addSolid(d, `cyl:${qx}:${qy}`, () => new THREE.CylinderGeometry(qx / 2, qx / 2, qy, 32), c, { hull: "cyl", ...at });
       else if (mat === "soft") addSolid(d, `soft:${qx}:${qy}:${qz}`, () => roundedBox(qx, qy, qz, Math.min(42, qy / 2.4, qx / 3, qz / 3)), c, { hull: "box", half: [qx / 2, qy / 2, qz / 2], edges: false, ...at });
       else addSolid(d, `box:${qx}:${qy}:${qz}`, () => new THREE.BoxGeometry(qx, qy, qz), c, at);
     }
@@ -113,6 +116,9 @@ export function partDrawable(p: PartType, holes: Hole[]) {
   } else {
     addSolid(d, `box:${sx}:${sy}:${sz}`, () => new THREE.BoxGeometry(sx, sy, sz), color);
   }
+  // a hole is drawn only where it sits on the part: one recorded off it would float in the air
+  const near = (h: Hole) => h.p.every((v, i) => Math.abs(v) <= p.size[i] / 2 + 3);
+  holes = holes.filter(near);
   if (holes.length) {
     const pts: number[] = [];
     const seg = 14;
@@ -144,6 +150,40 @@ export function partDrawable(p: PartType, holes: Hole[]) {
     d.thin.push(lm);
   }
   return d;
+}
+
+/** A flat board cut to an outline of [x, z] corners, each corner rounded, centred on its thickness. */
+function slab(pts: [number, number][], h: number, r: number) {
+  const s = new THREE.Shape();
+  const n = pts.length;
+  pts.forEach((c, i) => {
+    const prev = pts[(i + n - 1) % n], next = pts[(i + 1) % n];
+    const toward = (o: [number, number], k: number): [number, number] => {
+      const dx = o[0] - c[0], dz = o[1] - c[1], l = Math.hypot(dx, dz) || 1;
+      return [c[0] + (dx / l) * k, c[1] + (dz / l) * k];
+    };
+    const k = Math.min(r, Math.hypot(prev[0] - c[0], prev[1] - c[1]) / 2, Math.hypot(next[0] - c[0], next[1] - c[1]) / 2);
+    const a = toward(prev, k), b = toward(next, k);
+    if (i === 0) s.moveTo(a[0], a[1]);
+    else s.lineTo(a[0], a[1]);
+    s.quadraticCurveTo(c[0], c[1], b[0], b[1]);
+  });
+  s.closePath();
+  const g = new THREE.ExtrudeGeometry(s, { depth: h, bevelEnabled: false, curveSegments: 14 });
+  g.rotateX(Math.PI / 2);
+  g.translate(0, h / 2, 0);
+  return g;
+}
+
+/** Half a disc (one half of a round table top): flat edge along x at the back, curve towards the front, centred on its box. */
+function halfDisc(dia: number, h: number) {
+  const s = new THREE.Shape();
+  s.absarc(0, 0, dia / 2, 0, Math.PI, false);
+  s.lineTo(dia / 2, 0);
+  const g = new THREE.ExtrudeGeometry(s, { depth: h, bevelEnabled: false, curveSegments: 32 });
+  g.rotateX(Math.PI / 2);
+  g.translate(0, h / 2, -dia / 4);
+  return g;
 }
 
 function roundedBox(w: number, h: number, dpt: number, r: number) {
@@ -280,6 +320,44 @@ export function hwDrawable(kind: HwKind, len: number, dia: number) {
     case "connector":
       // a flat strip screwed across the joint between two sofa sections
       addSolid(d, `cn:${len}:${dia}`, () => new THREE.BoxGeometry(len, 2, dia), metal, { position: [0, 1, 0] });
+      break;
+    case "clip":
+      // a push-in plastic clip: a stem into the hole and a flat head
+      addSolid(d, "clip:stem", cyl(2.6, 9, 10), plastic, { hull: "cyl", position: [0, -4.5, 0] });
+      addSolid(d, `clip:head:${dia}`, () => new THREE.BoxGeometry(dia, 3, dia * 0.7), plastic, { position: [0, 1.5, 0] });
+      break;
+    case "strap":
+      // a wall strap lying flat against the panel
+      addSolid(d, `st:${len}:${dia}`, () => new THREE.BoxGeometry(dia, 1.4, len), plastic, { position: [0, 0.7, 0] });
+      break;
+    case "nut":
+      addSolid(d, `nut:${dia}`, cyl(dia * 0.95, Math.max(3, len), 6), metal, { hull: "cyl", position: [0, Math.max(3, len) / 2, 0] });
+      break;
+    case "washer":
+      addSolid(d, `wa:${dia}`, cyl(r, 1.6, 20), metal, { hull: "cyl", position: [0, 0.8, 0] });
+      break;
+    case "stud":
+      addSolid(d, `sd:${len}:${dia}`, cyl(r * 0.8, len, 12), metal, { hull: "cyl", position: [0, len / 2 - 10, 0] });
+      addSolid(d, `sd:head:${dia}`, cyl(r * 1.25, 3, 16), metal, { hull: "cyl", position: [0, len - 8.5, 0] });
+      break;
+    case "clamp":
+      addSolid(d, `cl:${len}:${dia}`, () => new THREE.BoxGeometry(len, 2.5, dia), metal, { position: [0, 1.25, 0] });
+      for (const x of [-1, 1]) addSolid(d, `cl:lip:${dia}`, () => new THREE.BoxGeometry(2.5, 9, dia), metal, { position: [x * (len / 2 - 1.25), 6, 0] });
+      break;
+    case "angle":
+      addSolid(d, `an:h:${len}:${dia}`, () => new THREE.BoxGeometry(dia, 2, len), metal, { position: [0, 1, 0] });
+      addSolid(d, `an:v:${len}:${dia}`, () => new THREE.BoxGeometry(dia, len, 2), metal, { position: [0, len / 2, -len / 2 + 1] });
+      break;
+    case "foot":
+      addSolid(d, "ft:thread", cyl(4, 14, 10), metal, { hull: "cyl", position: [0, -7, 0] });
+      addSolid(d, `ft:body:${len}:${dia}`, cyl(r, len, 20), plastic, { hull: "cyl", position: [0, len / 2, 0] });
+      break;
+    case "spacer":
+      addSolid(d, `sp:${len}:${dia}`, cyl(r, len, 18), plastic, { hull: "cyl", position: [0, len / 2, 0] });
+      addSolid(d, "sp:screw", cyl(2, 10, 10), metal, { hull: "cyl", position: [0, -5, 0] });
+      break;
+    case "cap":
+      addSolid(d, `cap:${dia}`, cyl(r, 2, 18), plastic, { hull: "cyl", position: [0, 1, 0] });
       break;
     case "gasLift": {
       // the narrow end drops into the base; the rod at the top goes up into the seat
