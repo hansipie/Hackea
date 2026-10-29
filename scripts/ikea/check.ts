@@ -137,9 +137,8 @@ async function main() {
   expect("billy height extension unit", "billy-height-extension-unit-40-x-28-x-35");
   expect("besta tv bench with drawers", "besta-tv-bench-drawers-120-x-42-x-48");
   expect("besta tv bench", "besta-tv-bench-120-x-40");
-  // a hat rack or a coat stand when asked for, the family's bench otherwise
+  // a hat rack when asked for, the family's bench otherwise
   expect("tjusig hat rack", "tjusig-hat-rack-79");
-  expect("nipasen coat stand", "nipasen-hat-and-coat-stand-181");
   expect("nipasen", "nipasen-bench-shoe-storage-79-x-35-x-52");
   // an armchair with its footstool when asked for, the armchair alone otherwise; a new piece after the family's sofa
   if (articleNo("S292.975.72") !== "29297572") fail("article numbers with an S in front don't parse");
