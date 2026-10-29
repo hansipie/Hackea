@@ -951,3 +951,283 @@
   margin: 4px 0 8px 14px;
   width: auto;
 }
+
+/* ================= workspace (/hacks/new?id=): toolbar, library, 3D view, properties ================= */
+
+/* the workspace is wider than the page column */
+.hx-main:has(.wk) {
+  max-width: none;
+  padding-inline: 16px;
+}
+.wk {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+.wk .hx-top {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.wk-name {
+  font-size: 16px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wk-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  padding: 6px 8px;
+  background: var(--paper);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r);
+}
+.wk-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding-right: 14px;
+  border-right: 1px solid var(--line);
+}
+.wk-group:last-child {
+  border-right: 0;
+  padding-right: 0;
+}
+.wk-views {
+  margin-left: auto;
+}
+.wk-btn {
+  display: inline-grid;
+  place-items: center;
+  min-width: 36px;
+  height: 36px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+.wk-btn:hover:not(:disabled) {
+  background: var(--sunk);
+}
+.wk-btn.on {
+  background: var(--ink);
+  color: var(--paper);
+}
+.wk-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.wk-btn:focus-visible,
+.wk-tab:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 1px;
+}
+.wk-body {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr) 340px;
+  gap: 10px;
+  height: calc(100vh - 230px);
+  min-height: 520px;
+}
+.wk-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--paper);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r);
+}
+.wk-side {
+  overflow-y: auto;
+}
+.wk-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 6px 6px 0;
+  border-bottom: 1px solid var(--line);
+  position: sticky;
+  top: 0;
+  background: var(--paper);
+  z-index: 1;
+}
+.wk-tab {
+  padding: 8px 12px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  font: inherit;
+  font-size: 14px;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.wk-tab.on {
+  color: var(--ink);
+  border-bottom-color: var(--ink);
+  font-weight: 600;
+}
+.wk-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  overflow-y: auto;
+  min-height: 0;
+}
+.wk-empty {
+  padding: 16px;
+  margin: 0;
+}
+.wk-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.wk-hits {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.wk-hits.sub {
+  margin: 0 0 6px 12px;
+  border-left: 2px solid var(--line);
+  padding-left: 8px;
+}
+.wk-hit {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 14px;
+}
+.wk-hit-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.wk-hit-add {
+  display: flex;
+  gap: 8px;
+  flex: none;
+}
+.wk-stage {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  background: var(--paper);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r);
+  overflow: hidden;
+}
+.wk-view {
+  position: absolute;
+  inset: 0;
+  touch-action: none;
+}
+.wk-canvas {
+  display: block;
+  touch-action: none;
+  outline: none;
+}
+.wk-readout {
+  position: absolute;
+  pointer-events: none;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.wk-hint-empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  color: var(--ink-3);
+  pointer-events: none;
+}
+.wk-stage-bar {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  pointer-events: none;
+}
+.wk-stage-bar > * {
+  pointer-events: auto;
+}
+.wk-size {
+  margin-left: auto;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--paper) 88%, transparent);
+  color: var(--ink-2);
+  font-size: 12.5px;
+  pointer-events: none;
+}
+.wk-steps {
+  margin: 0;
+  padding-left: 22px;
+  font-size: 14px;
+}
+.wk-details .hx-sec {
+  margin: 0;
+}
+
+@media (max-width: 1100px) {
+  .wk-body {
+    grid-template-columns: 240px minmax(0, 1fr);
+    height: auto;
+  }
+  .wk-stage {
+    height: 62vh;
+    min-height: 380px;
+  }
+  .wk-side {
+    grid-column: 1 / -1;
+    overflow: visible;
+  }
+}
+@media (max-width: 800px) {
+  .wk-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .wk-stage {
+    order: -1;
+    height: 56vh;
+  }
+  .wk-library {
+    max-height: 360px;
+  }
+  .wk-views {
+    margin-left: 0;
+  }
+  .wk-group {
+    padding-right: 8px;
+  }
+}
+.wk-stage-bar .chip.on {
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
+}

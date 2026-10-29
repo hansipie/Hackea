@@ -10,7 +10,7 @@ import type { Place } from "@/lib/hacks/edit";
 import { searchCatalog } from "@/lib/search";
 import { cachedSpec } from "@/lib/store";
 import { useMounted } from "@/lib/useMounted";
-import HackEditor from "./HackEditor";
+import Workspace from "./workspace/Workspace";
 import PhotoHack from "./PhotoHack";
 import MyHacks, { downloadText } from "./MyHacks";
 import { Num, Pick } from "./fields";
@@ -65,7 +65,7 @@ function Open({ id }: { id: string }) {
         </div>
       </div>
     );
-  if (saved) return <HackEditor id={id} initial={saved.draft} repaired={saved.problems} savedExport={saved.problems ? exportSaved(saved) : undefined} />;
+  if (saved) return <Workspace id={id} initial={saved.draft} repaired={saved.problems} savedExport={saved.problems ? exportSaved(saved) : undefined} />;
   return (
     <div className="hx-gone">
       <h1 className="hx-h1">{shared ? "A hack shared with you" : "This hack isn't here"}</h1>

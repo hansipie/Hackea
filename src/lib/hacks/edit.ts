@@ -340,3 +340,35 @@ export function duplicateParts(d: HackDraft, ids: string[]): { draft: HackDraft;
   }
   return null;
 }
+
+/* ---------- shapes from the library's "Boards and blocks" ---------- */
+
+export interface ShapePreset {
+  id: string;
+  label: string;
+  name: string;
+  size: Vec3;
+  shape: "box" | "cyl";
+  material: NonNullable<CustomPart["material"]>;
+}
+
+export const SHAPES: ShapePreset[] = [
+  { id: "board", label: "Board", name: "Board", size: [600, 18, 300], shape: "box", material: "board" },
+  { id: "panel", label: "Tall panel", name: "Panel", size: [18, 800, 300], shape: "box", material: "board" },
+  { id: "shelf", label: "Long shelf", name: "Shelf", size: [1000, 18, 300], shape: "box", material: "board" },
+  { id: "block", label: "Block", name: "Block", size: [200, 200, 200], shape: "box", material: "wood" },
+  { id: "leg", label: "Square leg", name: "Leg", size: [40, 400, 40], shape: "box", material: "wood" },
+  { id: "post", label: "Round post", name: "Post", size: [50, 700, 50], shape: "cyl", material: "wood" },
+  { id: "disc", label: "Round top", name: "Round top", size: [600, 18, 600], shape: "cyl", material: "board" },
+];
+
+/** A new part from a preset, standing on the floor to the right of what is there (the steps are worked out afterwards). */
+export function addShape(d: HackDraft, preset: ShapePreset, at: Vec3 | null = null): { draft: HackDraft; id: string } | null {
+  if (d.parts.length >= LIMITS.parts) return null;
+  const id = freeId(d.parts, preset.id);
+  const { hi } = boundsMm(d.parts);
+  const x = at ? at[0] : d.parts.length ? hi[0] + 20 + preset.size[0] / 2 : 0;
+  const part: CustomPart = { id, name: preset.name, size: [...preset.size], pos: [x, at ? at[1] : preset.size[1] / 2, at ? at[2] : 0], shape: preset.shape === "cyl" ? "cyl" : undefined, material: preset.material };
+  if (!inBounds([part])) return null;
+  return { draft: { ...d, parts: [...d.parts, part], steps: d.steps.length ? d.steps : [{ title: "Put it together" }] }, id };
+}

@@ -106,10 +106,10 @@ export function Num({
   );
 }
 
-export function Vec({ legend, value, onChange, min, max, names }: { legend: string; value: Vec3; onChange: (v: Vec3) => void; min: number; max: number; names: [string, string, string] }) {
+export function Vec({ legend, value, onChange, min, max, names, unit = "mm" }: { legend: string; value: Vec3; onChange: (v: Vec3) => void; min: number; max: number; names: [string, string, string]; unit?: string }) {
   return (
     <fieldset className="hx-vec">
-      <legend>{legend} (mm)</legend>
+      <legend>{legend} ({unit})</legend>
       {names.map((n, k) => (
         <Num
           key={n}
