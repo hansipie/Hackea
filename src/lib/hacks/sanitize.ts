@@ -164,6 +164,10 @@ function part(r: Reader, v: unknown, i: number, taken: Set<string>, reserved: Se
   if (shape) p.shape = shape;
   const material = r.oneOf<PartMaterial>(v.material, MATS, `${at} material`);
   if (material) p.material = material;
+  if (v.rot !== undefined) {
+    const rot = r.vec(v.rot, -LIMITS.rot, LIMITS.rot, `${at} turn (rad)`, 0);
+    if (rot.some((n) => n)) p.rot = rot;
+  }
   return p;
 }
 

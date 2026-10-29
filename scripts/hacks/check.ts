@@ -13,6 +13,9 @@ import { catalogSpec } from "@/lib/catalog";
 import { checkDraft, checkHack, checkHacks } from "@/lib/hacks/check";
 import { draftToSpec, LIMITS, mineSlug, specToDraft, type HackDraft } from "@/lib/hacks/draft";
 import * as E from "@/lib/hacks/edit";
+import { autoSteps } from "@/lib/hacks/autosteps";
+import { begin, commit, redo, undo } from "@/lib/hacks/history";
+import { snapMove } from "@/lib/hacks/snap";
 import { FORMAT, VERSION, exportHack, parseHackText, sanitizeDraft } from "@/lib/hacks/sanitize";
 import { deleteHack, duplicateHack, exportBackup, exportSaved, isUnreadable, listHacks, loadHack, loadStored, localSpec, mineSpec, readSaved, readShared, readStored, saveHack } from "@/lib/hacks/store";
 import { packJson } from "@/lib/scan/share";
@@ -355,6 +358,54 @@ const readsBack = (d: HackDraft, what: string) => {
   }
   delete (globalThis as { localStorage?: unknown }).localStorage;
   console.log("ok  storage keeps flagged hacks, backups and one way to read a guide");
+}
+
+/* ---------- the workspace's own pieces: turns, steps worked out from the parts, undo, snapping ---------- */
+{
+  // a turned part survives the file, the share link and the strict re-import
+  let d = blankDraft();
+  d = E.turnParts(d, [d.parts[0].id], 1, Math.PI / 2);
+  const turned = d.parts[0].rot;
+  if (!turned || Math.abs(turned[1] - Math.PI / 2) > 1e-9) fail("turning a part did not set its rotation");
+  const back = parseHackText(exportHack(d));
+  if (!back.draft || JSON.stringify(back.draft.parts[0].rot) !== JSON.stringify(turned)) fail("a part's rotation did not survive export and import");
+  if (E.turnParts(d, [d.parts[0].id], 1, -Math.PI / 2).parts[0].rot !== undefined) fail("a part turned back to zero kept a rotation");
+  console.log("ok  rotation survives export and import");
+
+  // steps worked out from the parts build a plan for every starter and for a turned board
+  const starters: [string, HackDraft][] = [["blank", blankDraft()], ["kallax 2x2", kallaxDraft(2, 2)], ["billy 3", billyDraft(3)]];
+  let stacked = E.addPart(blankDraft())!.draft;
+  stacked = E.addPart(stacked)!.draft;
+  starters.push(["stacked boards", stacked], ["turned board", E.turnParts(stacked, [stacked.parts[1].id], 2, Math.PI / 2)]);
+  for (const [name, draft] of starters) {
+    const auto = autoSteps(draft);
+    // the summary and "started from" are the person's to write, as in the templates above
+    const r = checkHack(draftToSpec("autocheck01", { ...auto, summary: "x", base: auto.base.length ? auto.base : [{ name: "x", qty: 1 }] }));
+    if (r.issues.length || !r.plan) fail(`steps worked out for ${name}: ${r.issues.map((i) => i.text).join("; ") || "no plan"}`);
+    else console.log(`ok  auto steps ${name}: ${auto.steps.length} steps`);
+  }
+
+  // undo, redo, and a drag that counts as one change
+  let h = begin(0);
+  h = commit(h, 1, "drag", 1000);
+  h = commit(h, 2, "drag", 1100);
+  h = commit(h, 3, "drag", 1200);
+  if (h.past.length !== 1) fail("a drag was more than one change");
+  h = undo(h);
+  if (h.now !== 0 || !h.future.length) fail("undo did not go back to before the drag");
+  h = redo(h);
+  if (h.now !== 3) fail("redo did not come back to after the drag");
+  console.log("ok  undo and redo");
+
+  // snapping: a board dropped near the floor and near another part's top lines up
+  const board = blankDraft();
+  const low = E.updatePart(board, board.parts[0].id, { pos: [0, board.parts[0].size[1] / 2, 0] }).parts;
+  const near = snapMove(low, [low[0].id], [0, -6, 0]);
+  if (Math.abs(near.delta[1]) > 1e-6) fail(`a part 6 mm under the floor did not snap onto it (moved ${near.delta[1]})`);
+  const two = low;
+  const free = snapMove(two, [two[0].id], [0, 400, 0], { grid: 0, reach: 15, parts: false });
+  if (free.delta[1] !== 400 || free.guides.length) fail("snapping with everything off moved the part");
+  console.log("ok  snapping");
 }
 
 if (failed) {

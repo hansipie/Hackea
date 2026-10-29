@@ -267,3 +267,76 @@ export function addLine(d: HackDraft, list: "mods" | "watchOut"): HackDraft | nu
   if (d[list].length >= (list === "mods" ? LIMITS.mods : LIMITS.watchOut)) return null;
   return { ...d, [list]: [...d[list], ""] };
 }
+
+/* ---------- placing parts by hand (the workspace): move, turn, resize ---------- */
+
+/** One part's centre, or null when it would leave the bounds an import is read with. */
+export function movePart(d: HackDraft, id: string, pos: Vec3): HackDraft | null {
+  const parts = d.parts.map((p) => (p.id === id ? { ...p, pos } : p));
+  return inBounds(parts) ? { ...d, parts } : null;
+}
+
+/** Several parts moved by the same amount (mm). */
+export function moveParts(d: HackDraft, ids: string[], by: Vec3): HackDraft | null {
+  const set = new Set(ids);
+  const parts = d.parts.map((p) => (set.has(p.id) ? { ...p, pos: [p.pos[0] + by[0], p.pos[1] + by[1], p.pos[2] + by[2]] as Vec3 } : p));
+  return inBounds(parts) ? { ...d, parts } : null;
+}
+
+/** One part's size (mm), kept within the sides an import is read with. */
+export function resizePart(d: HackDraft, id: string, size: Vec3): HackDraft {
+  const [lo, hi] = LIMITS.size;
+  const clamped = size.map((n) => Math.min(hi, Math.max(lo, Math.round(n * 10) / 10))) as Vec3;
+  return updatePart(d, id, { size: clamped });
+}
+
+/** A part's turn set outright (radians), with zeros stored as no turn at all, like a file without one. */
+export function setRotation(d: HackDraft, id: string, rot: Vec3): HackDraft {
+  const r = rot.map((n) => Math.max(-LIMITS.rot, Math.min(LIMITS.rot, n))) as Vec3;
+  return updatePart(d, id, { rot: r.some((n) => n) ? r : undefined });
+}
+
+/** Turns the parts a quarter (or any angle) around one axis, each about its own centre. */
+export function turnParts(d: HackDraft, ids: string[], axis: 0 | 1 | 2, by: number): HackDraft {
+  const set = new Set(ids);
+  return ids.reduce((acc, id) => {
+    const p = d.parts.find((x) => x.id === id);
+    if (!p || !set.has(id)) return acc;
+    const rot: Vec3 = [...(p.rot ?? [0, 0, 0])];
+    rot[axis] = wrapAngle(rot[axis] + by);
+    return setRotation(acc, id, rot);
+  }, d);
+}
+
+/** An angle brought back into half a turn either side of zero. */
+export const wrapAngle = (a: number) => {
+  const t = Math.PI * 2;
+  const r = ((((a + Math.PI) % t) + t) % t) - Math.PI;
+  return Math.abs(r) < 1e-9 ? 0 : r;
+};
+
+/** Takes several parts out, with their place in the steps. */
+export function removeParts(d: HackDraft, ids: string[]): HackDraft {
+  return ids.reduce(removePart, d);
+}
+
+/** A copy of several parts, set a little to the right of where they were (or back on the left), each keeping its step. */
+export function duplicateParts(d: HackDraft, ids: string[]): { draft: HackDraft; ids: string[] } | null {
+  if (!ids.length || d.parts.length + ids.length > LIMITS.parts) return null;
+  const picked = d.parts.filter((p) => ids.includes(p.id));
+  const { lo, hi } = boundsMm(picked);
+  const gap = hi[0] - lo[0] + 20;
+  for (const dx of [gap, -gap]) {
+    let next = d;
+    const made: string[] = [];
+    for (const p of picked) {
+      const id = freeId(next.parts, p.id.replace(/-\d+$/, ""));
+      const at = stepOf(d, p.id);
+      next = { ...next, parts: [...next.parts, { ...p, id, size: [...p.size] as Vec3, pos: [p.pos[0] + dx, p.pos[1], p.pos[2]] as Vec3 }] };
+      if (at >= 0) next = setPartStep(next, id, at);
+      made.push(id);
+    }
+    if (inBounds(next.parts)) return { draft: next, ids: made };
+  }
+  return null;
+}

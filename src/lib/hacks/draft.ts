@@ -1,4 +1,5 @@
 import type { CustomFix, CustomPart, CustomStep, HackMeta, HwKind, PartMaterial, Pose, ProductSpec, ToolId, WarnId } from "../types";
+import { boxOf } from "../plan/custom";
 
 /**
  * A hack someone makes in the editor (/hacks/new). It holds what a curated hack in src/data/hacks says,
@@ -48,6 +49,7 @@ export const LIMITS = {
   minutes: [5, 1440],
   size: [1, 4000], // mm, each side of a part
   pos: 6000, // mm, how far a part's centre sits from the origin
+  rot: 7, // rad, each turn of a part (a bit over a full circle)
   len: [3, 400], // mm, a screw or bolt
 } as const;
 
@@ -93,11 +95,14 @@ export function boundsMm(parts: CustomPart[]): { lo: [number, number, number]; h
   if (!parts.length) return { lo: [0, 0, 0], hi: [0, 0, 0], size: [0, 0, 0] };
   const lo: [number, number, number] = [Infinity, Infinity, Infinity];
   const hi: [number, number, number] = [-Infinity, -Infinity, -Infinity];
-  for (const p of parts)
+  // a turned part counts by the box its corners reach
+  for (const p of parts) {
+    const b = boxOf(p);
     for (let k = 0; k < 3; k++) {
-      lo[k] = Math.min(lo[k], p.pos[k] - p.size[k] / 2);
-      hi[k] = Math.max(hi[k], p.pos[k] + p.size[k] / 2);
+      lo[k] = Math.min(lo[k], b.min[k]);
+      hi[k] = Math.max(hi[k], b.max[k]);
     }
+  }
   return { lo, hi, size: [hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]] };
 }
 
