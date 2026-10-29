@@ -1226,6 +1226,19 @@
     padding-right: 8px;
   }
 }
+.wk.full {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  padding: 10px 14px;
+  overflow: auto;
+  background: var(--bg, var(--paper));
+}
+.wk.full .wk-body {
+  flex: 1;
+  height: auto;
+  min-height: 0;
+}
 .wk-stage-bar .chip.on {
   background: var(--ink);
   color: var(--paper);

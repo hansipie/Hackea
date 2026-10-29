@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Maximize, Minimize } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CustomPart, Plan, Vec3 } from "@/lib/types";
 import type { StageMode } from "@/engine/stage";
@@ -51,6 +52,8 @@ export default function Workspace({ id, initial, repaired, savedExport }: { id: 
   const pending = useRef<HackDraft | null>(null);
   const vp = useRef<ViewportHandle | null>(null);
   const reframe = useRef(false);
+  const root = useRef<HTMLDivElement | null>(null);
+  const [full, setFull] = useState(false);
   // set by the first change, so that undoing back to what was opened still writes it back
   const edited = useRef(false);
 
@@ -148,6 +151,33 @@ export default function Workspace({ id, initial, repaired, savedExport }: { id: 
   };
   const turn = (axis: 0 | 1 | 2, by: number) => selection.length && apply((d) => E.turnParts(d, selection, axis, by), { key: `turn${axis}` });
 
+  /** Full screen: the whole workspace fills the display (the browser's own full screen where it has one). */
+  const toggleFull = () => {
+    if (full) {
+      if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
+      setFull(false);
+      return;
+    }
+    setFull(true);
+    void root.current?.requestFullscreen?.().catch(() => {});
+  };
+  useEffect(() => {
+    // leaving the browser's full screen (Esc, F11) leaves ours too
+    const onChange = () => {
+      if (!document.fullscreenElement) setFull(false);
+    };
+    document.addEventListener("fullscreenchange", onChange);
+    return () => document.removeEventListener("fullscreenchange", onChange);
+  }, []);
+  useEffect(() => {
+    if (!full) return;
+    const onEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !document.fullscreenElement) setFull(false);
+    };
+    window.addEventListener("keydown", onEsc);
+    return () => window.removeEventListener("keydown", onEsc);
+  }, [full]);
+
   // keys, unless a field has the focus
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -180,6 +210,7 @@ export default function Workspace({ id, initial, repaired, savedExport }: { id: 
       if (k === "v") return setTool("select");
       if (k === "m") return setTool("move");
       if (k === "s") return setTool("scale");
+      if (k === "f" && e.shiftKey) return toggleFull();
       if (k === "f") return vp.current?.frame();
       if (k === "r") return turn(e.shiftKey ? 0 : e.altKey ? 2 : 1, Math.PI / 2);
       if (["1", "2", "3", "4"].includes(k)) return setView((["3d", "top", "front", "side"] as const)[Number(k) - 1]);
@@ -242,7 +273,7 @@ export default function Workspace({ id, initial, repaired, savedExport }: { id: 
   const patchPart = (pid: string, patch: Partial<CustomPart>) => apply((d) => E.updatePart(d, pid, patch), { key: `part:${pid}` });
 
   return (
-    <div className="wk">
+    <div className={"wk" + (full ? " full" : "")} ref={root}>
       <div className="hx-top">
         <Link href="/hacks/new" className="btn link inline hx-back">
           <IArrowLeft size={16} /> My builds
@@ -346,6 +377,9 @@ export default function Workspace({ id, initial, repaired, savedExport }: { id: 
             <span className="wk-size">
               {size[0]} × {size[1]} × {size[2]} cm · {draft.parts.length} parts
             </span>
+            <button type="button" className="btn round small wk-full" aria-pressed={full} aria-label={full ? "Leave full screen" : "Full screen"} title={(full ? "Leave full screen" : "Full screen") + " (Shift+F)"} onClick={toggleFull}>
+              {full ? <Minimize size={16} /> : <Maximize size={16} />}
+            </button>
           </div>
         </div>
 
