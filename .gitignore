@@ -22,6 +22,11 @@
 
 # misc
 .DS_Store
+
+# raw IKEA responses (scripts/ikea/fetch.ts)
+/scripts/ikea/cache/
+# IKEA's raw product listings stay local: npm run ikea:fetch rebuilds them
+/scripts/ikea/facts*.json
 *.pem
 
 # debug
@@ -39,3 +44,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# keep the example env file
+!.env.example
+.env*.local
+
+# local agent sessions and worktrees
+.claude/
