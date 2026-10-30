@@ -56,7 +56,7 @@ MIT, see [LICENSE](LICENSE). Hackea is not affiliated with IKEA: IKEA and its pr
 
 Run `npm run voice -- --dry` to estimate the recording budget, then `npm run voice` with `OPENAI_API_KEY` set to generate clips under `public/voice/marin`. Recording logs are kept in `scripts/voice/clips-marin.json`. Existing clips from another voice are not used. Until Marin clips are generated, speech requires the visitor's OpenAI key and an internet connection. Optional name respellings can be generated with `npm run voice:names`.
 
-Text and photo requests use `gpt-4.1-mini`; scan planning uses `gpt-4.1`. Each can be overridden with the model lists in `.env.example`. Transcription uses `gpt-transcribe`.
+Text requests use `gpt-6-luna`; photo requests and manual reading use `gpt-6.1-terra`; scan planning uses `gpt-6.1-sol`. Each falls back to `gpt-4.1-mini` (or `gpt-4.1` for planning) and can be overridden with the model lists in `.env.example`. Transcription uses `gpt-transcribe`.
 
 Speech uses the existing MP3 workflow with `gpt-4o-mini-tts`. OpenAI [documents its shutdown on January 6, 2027](https://developers.openai.com/api/docs/guides/text-to-speech); moving speech to Realtime will be required before that date. Transcription follows the [OpenAI file transcription guide](https://developers.openai.com/api/docs/guides/speech-to-text).
 

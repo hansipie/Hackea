@@ -5,13 +5,13 @@ const BASE = "https://api.openai.com/v1";
 
 export const MODELS = {
   // laying out a scanned manual: the strongest reasoning we can afford per scan
-  plan: list(process.env.OPENAI_PLAN_MODEL, "gpt-4.1"),
+  plan: list(process.env.OPENAI_PLAN_MODEL, "gpt-6.1-sol,gpt-4.1"),
   // product lookups and the "Stuck?" chat: cheap and quick
-  text: list(process.env.OPENAI_TEXT_MODEL, "gpt-4.1-mini"),
-  // box labels and loose parts
-  vision: list(process.env.OPENAI_VISION_MODEL, "gpt-4.1-mini"),
+  text: list(process.env.OPENAI_TEXT_MODEL, "gpt-6-luna,gpt-4.1-mini"),
+  // box labels, loose parts and photo hacks
+  vision: list(process.env.OPENAI_VISION_MODEL, "gpt-6.1-terra,gpt-4.1-mini"),
   // reading manual pages, where small print matters most
-  read: list(process.env.OPENAI_READ_MODEL, "gpt-4.1-mini"),
+  read: list(process.env.OPENAI_READ_MODEL, "gpt-6.1-terra,gpt-4.1-mini"),
 };
 
 function list(env: string | undefined, fallback: string) {
