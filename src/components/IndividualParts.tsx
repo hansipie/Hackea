@@ -4,11 +4,8 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { fold } from "@/lib/fold";
 import { PART_FILTERS, partGroups } from "@/lib/part-filters";
-import { parseSizeText, searchBySize, unorderedSizes } from "@/lib/dimensions";
+import { partGaps } from "@/lib/part-search";
 import { IHelp } from "@/components/art/Icons";
-
-/** cm: parts are cut to size, so a size means more here than for a whole piece of furniture */
-const PART_TOLERANCE = 1;
 
 export interface IndividualPartRow {
   key: string;
@@ -45,13 +42,7 @@ export default function IndividualParts({ parts }: { parts: IndividualPartRow[] 
   const materials = useMemo(() => [...new Set(parts.map((p) => p.material))].sort(), [parts]);
   const groups = useMemo(() => new Map(parts.map((p) => [p.key, partGroups(p.names)])), [parts]);
   // "40x18x2" or "h100 w80": sizes in cm, in any order, closest first until a column is chosen
-  const gaps = useMemo(() => {
-    const q = parseSizeText(query);
-    const size = q && unorderedSizes(q);
-    if (!size) return null;
-    const rows = parts.map((p) => ({ p, size: { w: (p.size[0] ?? 0) / 10, h: (p.size[1] ?? 0) / 10, d: (p.size[2] ?? 0) / 10 } }));
-    return new Map(searchBySize(rows, { ...size, tolerance: PART_TOLERANCE }).map((r) => [r.entry.p.key, r.gap]));
-  }, [parts, query]);
+  const gaps = useMemo(() => partGaps(parts, query), [parts, query]);
   const matching = useMemo(() => {
     if (gaps) return parts.filter((p) => gaps.has(p.key) && (!material || material === p.material));
     const words = fold(query).split(" ").filter(Boolean);

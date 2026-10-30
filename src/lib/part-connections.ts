@@ -13,6 +13,8 @@ export interface ConnectionProduct {
 
 export interface ConnectionElement {
   key: string;
+  /** one furniture piece that has this part, and the part's id in its plan: enough to add the part from the library */
+  source: { slug: string; ref: string };
   signature: string;
   names: string[];
   name: string;
@@ -65,7 +67,7 @@ export function individualPartData(): ConnectionData {
       if (id === undefined) {
         id = elements.length;
         bySignature.set(signature, id);
-        elements.push({ key: createHash("sha256").update(signature).digest("hex").slice(0, 24), signature, names: [], name: part.name, size: dimensions(part.size), material: part.material, shape: part.shape, products: [] });
+        elements.push({ key: createHash("sha256").update(signature).digest("hex").slice(0, 24), source: { slug: entry.slug, ref: part.id }, signature, names: [], name: part.name, size: dimensions(part.size), material: part.material, shape: part.shape, products: [] });
       }
       if (!elements[id].names.includes(part.name)) elements[id].names.push(part.name);
       quantities.set(id, (quantities.get(id) ?? 0) + part.qty);

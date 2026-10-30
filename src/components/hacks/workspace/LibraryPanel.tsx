@@ -2,13 +2,16 @@
 
 import { useMemo, useState } from "react";
 import { FIX_KINDS, LIMITS } from "@/lib/hacks/draft";
-import { SHAPES, type Place, type ShapePreset } from "@/lib/hacks/edit";
+import type { Place, ShapePreset } from "@/lib/hacks/edit";
 import { libraryParts } from "@/lib/hacks/library";
 import { searchCatalog } from "@/lib/search";
-import { IPlus, ISearch } from "../../art/Icons";
+import { PRODUCTS } from "@/lib/catalog";
+import { parseSizeText, searchBySize } from "@/lib/dimensions";
+import { IHelp, IPlus, ISearch } from "../../art/Icons";
 import { Pick } from "../fields";
+import PartsPane from "./PartsPane";
 
-type Tab = "furniture" | "shapes" | "fittings";
+type Tab = "furniture" | "parts" | "fittings";
 
 const POPULAR = ["KALLAX", "BILLY", "LACK", "PAX", "ALEX", "BESTA", "HEMNES", "IVAR", "EKET", "TROFAST"];
 
@@ -25,13 +28,17 @@ export default function LibraryPanel({ full, onAddFurniture, onAddPart, onAddSha
   const [q, setQ] = useState("");
   const [place, setPlace] = useState<Place>("beside");
   const [parts, setParts] = useState<string | null>(null);
-  const hits = useMemo(() => (q.trim().length >= 2 ? searchCatalog(q, 12) : []), [q]);
+  const [help, setHelp] = useState(false);
+  // "80x40x100" or "h100 w80": sizes in cm, closest first, instead of a name
+  const size = useMemo(() => parseSizeText(q), [q]);
+  const sized = useMemo(() => (size ? searchBySize(PRODUCTS, size) : []), [size]);
+  const hits = useMemo(() => (size ? sized.slice(0, 12) : q.trim().length >= 2 ? searchCatalog(q, 12) : []), [q, size, sized]);
   return (
     <section className="wk-panel wk-library" aria-label="Library">
       <div className="wk-tabs" role="tablist" aria-label="Library">
-        {(["furniture", "shapes", "fittings"] as const).map((t) => (
+        {(["furniture", "parts", "fittings"] as const).map((t) => (
           <button key={t} type="button" role="tab" aria-selected={tab === t} className={"wk-tab" + (tab === t ? " on" : "")} onClick={() => setTab(t)}>
-            {t === "furniture" ? "Furniture" : t === "shapes" ? "Boards" : "Fittings"}
+            {t === "furniture" ? "Furniture" : t === "parts" ? "Parts" : "Fittings"}
           </button>
         ))}
       </div>
@@ -41,7 +48,17 @@ export default function LibraryPanel({ full, onAddFurniture, onAddPart, onAddSha
           <div className="hx-search-box">
             <ISearch size={18} />
             <input type="search" aria-label="Find furniture or a part" value={q} maxLength={60} placeholder="KALLAX, BILLY, a leg..." autoComplete="off" disabled={full} onChange={(e) => setQ(e.target.value)} />
+            <button type="button" className="cat-clear" onClick={() => setHelp(!help)} aria-label="How to search" aria-expanded={help} aria-controls="wk-search-help">
+              <IHelp size={16} />
+            </button>
           </div>
+          {help && (
+            <div id="wk-search-help" className="cat-help">
+              <p><b>By name</b>: <button type="button" onClick={() => setQ("kallax")}>kallax</button>, <button type="button" onClick={() => setQ("billy")}>billy</button>.</p>
+              <p><b>By size</b> in centimetres, in any order: <button type="button" onClick={() => setQ("80x40x100")}>80x40x100</button> or <button type="button" onClick={() => setQ("80 x 40")}>80 x 40</button>.</p>
+              <p>Or name each size: <button type="button" onClick={() => setQ("h100 w80")}>h100 w80</button> (h height, w width, d depth). A single size needs its unit: <button type="button" onClick={() => setQ("100 cm")}>100 cm</button>. Sizes match within 5 cm, closest first.</p>
+            </div>
+          )}
           <Pick label="Where it goes" value={place} options={[{ id: "beside", label: "Beside what is there" }, { id: "on-top", label: "On top of it" }]} onChange={(v) => setPlace(v as Place)} />
           {full && <p className="hx-hint">{LIMITS.parts} parts at most.</p>}
           {!q.trim() && (
@@ -54,7 +71,15 @@ export default function LibraryPanel({ full, onAddFurniture, onAddPart, onAddSha
             </div>
           )}
           <p className="hx-hint" aria-live="polite">
-            {q.trim().length >= 2 && !hits.length ? "Nothing found. Type the name as IKEA writes it." : ""}
+            {size
+              ? !sized.length
+                ? "No furniture is that size."
+                : sized.length > hits.length
+                  ? `${sized.length.toLocaleString("en-US")} match, showing ${hits.length}. Add another size to narrow it.`
+                  : ""
+              : q.trim().length >= 2 && !hits.length
+                ? "Nothing found. Type the name as IKEA writes it."
+                : ""}
           </p>
           <ul className="wk-hits">
             {hits.map(({ entry: e }) => (
@@ -62,6 +87,7 @@ export default function LibraryPanel({ full, onAddFurniture, onAddPart, onAddSha
                 <div className="wk-hit">
                   <span className="wk-hit-name">
                     <b>{e.name}</b> {e.variant}
+                    {size && <span className="hx-hint"> {e.size.w} w × {e.size.h} h × {e.size.d} d cm</span>}
                   </span>
                   <span className="wk-hit-add">
                     <button type="button" className="btn link inline" aria-expanded={parts === e.slug} onClick={() => setParts(parts === e.slug ? null : e.slug)}>
@@ -92,22 +118,8 @@ export default function LibraryPanel({ full, onAddFurniture, onAddPart, onAddSha
         </div>
       )}
 
-      {tab === "shapes" && (
-        <div className="wk-pane">
-          <p className="hx-hint">Boards and blocks cut to size. Add one, then drag it or type its size.</p>
-          <ul className="wk-hits">
-            {SHAPES.map((s) => (
-              <li key={s.id} className="wk-hit">
-                <span className="wk-hit-name">
-                  <b>{s.label}</b> <span className="hx-hint">{s.size.join(" × ")} mm</span>
-                </span>
-                <button type="button" className="btn link inline" disabled={full} onClick={() => onAddShape(s)}>
-                  <IPlus size={15} /> Add
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
+      {tab === "parts" && (
+        <PartsPane full={full} place={place} onPlace={setPlace} onAddPart={(slug, ref) => onAddPart(slug, ref, place)} onAddShape={onAddShape} />
       )}
 
       {tab === "fittings" && (

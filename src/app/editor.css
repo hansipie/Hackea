@@ -1305,3 +1305,11 @@ a.hx-from-card {
 .hx-imported > span {
   flex: 1 1 14rem;
 }
+
+.wk-boards {
+  margin-top: 14px;
+}
+.wk-boards summary {
+  cursor: pointer;
+  font-weight: 600;
+}
