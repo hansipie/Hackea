@@ -1,6 +1,6 @@
 "use client";
 
-import { Box, Copy, Magnet, MousePointer2, Move3d, Redo2, RotateCw, Scale3d, Trash2, Undo2, Maximize2 } from "lucide-react";
+import { Box, Copy, Group, Magnet, MousePointer2, Move3d, Redo2, RotateCw, Scale3d, Trash2, Ungroup, Undo2, Maximize2 } from "lucide-react";
 import type { Tool, ViewName } from "./viewport";
 
 const TOOLS: { id: Tool; label: string; key: string; Icon: typeof Box }[] = [
@@ -22,6 +22,8 @@ interface Props {
   view: ViewName;
   onView: (v: ViewName) => void;
   hasSelection: boolean;
+  canGroup: boolean;
+  canUngroup: boolean;
   canUndo: boolean;
   canRedo: boolean;
   snap: boolean;
@@ -30,6 +32,8 @@ interface Props {
   onRedo: () => void;
   onTurn: (axis: 0 | 1 | 2, by: number) => void;
   onDuplicate: () => void;
+  onGroup: () => void;
+  onUngroup: () => void;
   onDelete: () => void;
   onFrame: () => void;
 }
@@ -59,6 +63,8 @@ export default function Toolbar(p: Props) {
           Z
         </button>
         {btn("Duplicate", Copy, p.onDuplicate, { disabled: !p.hasSelection, key: "Ctrl+D" })}
+        {btn("Group", Group, p.onGroup, { disabled: !p.canGroup, key: "Ctrl+G" })}
+        {btn("Ungroup", Ungroup, p.onUngroup, { disabled: !p.canUngroup, key: "Ctrl+Shift+G" })}
         {btn("Delete", Trash2, p.onDelete, { disabled: !p.hasSelection, key: "Delete" })}
       </div>
       <div className="wk-group" role="group" aria-label="Snapping">

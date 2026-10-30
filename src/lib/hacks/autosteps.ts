@@ -1,7 +1,7 @@
 import type { CustomFix, CustomPart, CustomStep } from "../types";
 import { boxOf } from "../plan/custom";
 import { LIMITS, type HackDraft } from "./draft";
-import { groupsOf } from "./edit";
+import { piecesOf } from "./edit";
 
 /**
  * The assembly steps of a build placed in the workspace, worked out from where the parts are. A piece from the
@@ -41,7 +41,7 @@ function title(fresh: CustomPart[]): string {
 
 export function autoSteps(d: HackDraft): HackDraft {
   if (!d.parts.length) return { ...d, steps: [] };
-  const pieces = new Set(groupsOf(d).flatMap((g) => g.ids));
+  const pieces = new Set(piecesOf(d).flatMap((g) => g.ids));
   // what a library piece came with, as long as it brings in only parts of pieces
   const kept = d.steps.filter((s) => s.add?.length && s.add.every((id) => pieces.has(id)) || (!s.add?.length && s.fix?.length && s.fix.every((f) => f.to?.every((id) => pieces.has(id)) ?? false)));
   const placed = new Set(kept.flatMap((s) => s.add ?? []));

@@ -6,6 +6,13 @@ import { boxOf } from "../plan/custom";
  * minus what the editor works out itself: the overall size comes from the parts, the slug from the id.
  * Parts are in mm, y up from the floor, x left to right, z back to front, like every custom spec.
  */
+/** Parts the editor moves, selects and deletes together. Editor only: the guide and the spec never see it. */
+export interface PartGroup {
+  id: string;
+  name: string;
+  ids: string[];
+}
+
 export interface HackDraft {
   name: string;
   variant: string;
@@ -20,6 +27,8 @@ export interface HackDraft {
   watchOut: string[];
   parts: CustomPart[];
   steps: CustomStep[];
+  /** Absent in a hack saved before groups existed: the pieces added from the library are its groups then (groupsOf). */
+  groups?: PartGroup[];
 }
 
 /** Bounds for everything a draft holds. Imported files and share links are checked against them. */
@@ -39,6 +48,8 @@ export const LIMITS = {
   mods: 12,
   watchOut: 6,
   parts: 120,
+  groups: 60,
+  groupName: 40,
   steps: 40, // the engine follows 40 steps at most
   fixes: 6, // fittings per step the engine places
   fixCount: 48,

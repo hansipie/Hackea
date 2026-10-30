@@ -1,5 +1,5 @@
 import type { CustomFix, CustomPart, CustomStep, HwKind, PartMaterial, Pose, ToolId, Vec3, WarnId } from "../types";
-import { FIX_KINDS, LIMITS, MATERIALS, PART_ID, POSES, TOOLS, WARNINGS, type HackDraft } from "./draft";
+import { FIX_KINDS, LIMITS, MATERIALS, PART_ID, POSES, TOOLS, WARNINGS, type HackDraft, type PartGroup } from "./draft";
 
 /**
  * Reads a hack from somewhere we don't control: an imported file, a share link, or this browser's own storage.
@@ -216,6 +216,36 @@ function step(r: Reader, v: unknown, i: number): CustomStep | null {
   return s;
 }
 
+/** Groups: each names two parts at least that exist, and a part is in one group only. With `repair`, what breaks that is left out. */
+function groups(r: Reader, v: unknown, have: Set<string>): PartGroup[] | undefined {
+  if (v === undefined || v === null) return undefined;
+  const out: PartGroup[] = [];
+  const used = new Set<string>();
+  const names = new Set<string>();
+  r.list(v, LIMITS.groups, "Groups").forEach((g, i) => {
+    const at = `Group ${i + 1}`;
+    if (!isObj(g)) return r.fail(at, "should be an object");
+    let id = typeof g.id === "string" && PART_ID.test(g.id) && !names.has(g.id) ? g.id : "";
+    if (!id) {
+      r.fail(at, "its id should be 1 to 32 letters, digits, - or _, and not used by another group");
+      for (let k = i + 1; !id || names.has(id); k++) id = `group${k}`;
+    }
+    names.add(id);
+    const ids: string[] = [];
+    for (const x of r.ids(g.ids, LIMITS.parts, `${at} parts`)) {
+      if (!have.has(x)) r.fail(at, `${x} is not a part of this hack`);
+      else if (used.has(x)) r.fail(at, `${x} is in another group already`);
+      else {
+        used.add(x);
+        ids.push(x);
+      }
+    }
+    if (ids.length < 2) return r.fail(at, "needs two parts at least");
+    out.push({ id, name: r.text(g.name, LIMITS.groupName, `${at} name`, "Group"), ids });
+  });
+  return out;
+}
+
 const refuse = (text: string): Sanitized => ({ draft: null, errors: [text], problems: [{ text }] });
 
 /**
@@ -282,6 +312,7 @@ export function sanitizeDraft(raw: unknown, knownSlug: (slug: string) => boolean
       .list(x, max, where)
       .map((s, i) => r.text(s, LIMITS.line, `${where} ${i + 1}`));
 
+  const grouped = groups(r, body.groups, new Set(parts.map((p) => p.id)));
   const draft: HackDraft = {
     name: r.text(h.name, LIMITS.name, "Name", "Untitled hack"),
     variant: r.text(h.variant, LIMITS.variant, "Subtitle"),
@@ -297,6 +328,7 @@ export function sanitizeDraft(raw: unknown, knownSlug: (slug: string) => boolean
     parts,
     steps,
   };
+  if (grouped) draft.groups = grouped;
   const errors = r.problems.map((p) => p.text);
   return { draft: errors.length && !r.repair ? null : draft, errors, problems: r.problems };
 }

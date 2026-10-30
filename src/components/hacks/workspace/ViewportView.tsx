@@ -18,20 +18,21 @@ interface Props {
   view: ViewName;
   snap: boolean;
   onPick: (id: string | null, additive: boolean) => void;
+  group: (id: string) => string[];
   onMove: (ids: string[], by: Vec3) => void;
   onResize: (id: string, size: Vec3, pos: Vec3) => void;
   onReady?: (h: ViewportHandle) => void;
 }
 
 /** The workspace's 3D and flat views. three.js is loaded when this mounts, so it stays out of the server render. */
-export default function ViewportView({ parts, selection, tool, view, snap, onPick, onMove, onResize, onReady }: Props) {
+export default function ViewportView({ parts, selection, tool, view, snap, onPick, group, onMove, onResize, onReady }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const vp = useRef<Viewport | null>(null);
   const [readout, setReadout] = useState<Readout | null>(null);
   // what the viewport asks for while a drag is held is answered from the latest props, never from a stale render
-  const latest = useRef({ parts, snap, onPick, onMove, onResize });
+  const latest = useRef({ parts, snap, onPick, group, onMove, onResize });
   useEffect(() => {
-    latest.current = { parts, snap, onPick, onMove, onResize };
+    latest.current = { parts, snap, onPick, group, onMove, onResize };
   });
   const first = useRef({ parts, selection, tool, view });
 
@@ -42,6 +43,7 @@ export default function ViewportView({ parts, selection, tool, view, snap, onPic
       if (!alive || !host.current) return;
       v = new Viewport(host.current, {
         onPick: (id, add) => latest.current.onPick(id, add),
+        group: (id) => latest.current.group(id),
         onMove: (ids, by) => latest.current.onMove(ids, by),
         onResize: (id, size, pos) => latest.current.onResize(id, size, pos),
         snap: (ids, by) => {

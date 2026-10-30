@@ -1,6 +1,6 @@
 import type { CustomPart, CustomStep, Vec3 } from "../types";
 import { billyFrame, kallaxGrid } from "@/data/hacks/parts";
-import { LIMITS, PART_ID, boundsMm, freeId, type HackDraft } from "./draft";
+import { LIMITS, PART_ID, boundsMm, freeId, type HackDraft, type PartGroup } from "./draft";
 import { freeStem, furniture, libraryParts } from "./library";
 
 /**
@@ -14,6 +14,9 @@ import { freeStem, furniture, libraryParts } from "./library";
 const inBounds = (parts: CustomPart[]) => parts.every((p) => p.pos.every((n) => Math.abs(n) <= LIMITS.pos));
 
 const mapSteps = (d: HackDraft, f: (s: CustomStep, i: number) => CustomStep): HackDraft => ({ ...d, steps: d.steps.map(f) });
+
+/** A group of one part is no group: it goes. */
+const tidy = (groups: PartGroup[]) => groups.filter((g) => g.ids.length > 1);
 
 /** The step a part arrives in, or -1. */
 export function stepOf(d: HackDraft, id: string): number {
@@ -36,6 +39,7 @@ export function renamePart(d: HackDraft, from: string, to: string): HackDraft {
   return {
     ...mapSteps(d, (s) => ({ ...s, add: swap(s.add), fix: s.fix?.map((f) => ({ ...f, to: swap(f.to) })) })),
     parts: d.parts.map((p) => (p.id === from ? { ...p, id: to } : p)),
+    ...(d.groups && { groups: d.groups.map((g) => ({ ...g, ids: swap(g.ids)! })) }),
   };
 }
 
@@ -47,6 +51,7 @@ export function removePart(d: HackDraft, id: string): HackDraft {
       return { ...s, add: add?.length ? add : undefined, fix: s.fix?.map((f) => ({ ...f, to: drop(f.to) })) };
     }),
     parts: d.parts.filter((p) => p.id !== id),
+    ...(d.groups && { groups: tidy(d.groups.map((g) => ({ ...g, ids: g.ids.filter((x) => x !== id) }))) }),
   };
 }
 
@@ -150,6 +155,10 @@ export function addFurniture(d: HackDraft, slug: string, at: Place = "beside"): 
   const f = stem && furniture(slug, stem);
   if (!f) return null;
   const next = append(d, f.parts, f.steps, stem, at);
+  // a piece arrives as one group: its parts select, move and go together until they are ungrouped
+  const had = new Set(d.parts.map((p) => p.id));
+  const ids = next ? next.parts.filter((p) => !had.has(p.id)).map((p) => p.id) : [];
+  if (next && ids.length > 1 && groupsOf(d).length < LIMITS.groups) next.groups = [...groupsOf(d), { id: freeGroupId(d, stem), name: f.short.slice(0, LIMITS.groupName), ids }];
   const based = next && withBase(next, { name: f.label, slug, qty: 1 });
   return based && withSummary(based);
 }
@@ -177,7 +186,7 @@ export function addLibraryPart(d: HackDraft, slug: string, ref: string, at: Plac
   return based && withSummary(based);
 }
 
-/* A piece added from the library keeps one stem on all its ids ("billy1-"), which is how its parts move and go together. */
+/* A piece added from the library keeps one stem on all its ids ("billy1-"): that is what its own steps are kept by (./autosteps.ts). */
 
 export interface Group {
   stem: string;
@@ -186,7 +195,7 @@ export interface Group {
 }
 
 /** The pieces of the build: parts that share a stem, in the order they were added. */
-export function groupsOf(d: HackDraft): Group[] {
+export function piecesOf(d: HackDraft): Group[] {
   const by = new Map<string, Group>();
   for (const p of d.parts) {
     const stem = p.id.split("-")[0];
@@ -196,6 +205,56 @@ export function groupsOf(d: HackDraft): Group[] {
     by.set(stem, g);
   }
   return [...by.values()];
+}
+
+/* ---------- groups: what the workspace selects, moves and deletes together ---------- */
+
+/** The groups of the build. A hack saved before groups existed has its library pieces as groups. */
+export function groupsOf(d: HackDraft): PartGroup[] {
+  return d.groups ?? piecesOf(d).map((g) => ({ id: g.stem, name: g.label.slice(0, LIMITS.groupName), ids: g.ids }));
+}
+
+/** The group a part is in. */
+export const groupOf = (d: HackDraft, id: string) => groupsOf(d).find((g) => g.ids.includes(id));
+
+/** Every part that goes with this one: its group, or itself alone. */
+export const withGroup = (d: HackDraft, id: string): string[] => groupOf(d, id)?.ids ?? [id];
+
+function freeGroupId(d: HackDraft, stem: string): string {
+  const used = new Set(groupsOf(d).map((g) => g.id));
+  if (!used.has(stem)) return stem;
+  for (let i = 2; ; i++) if (!used.has(`${stem}-${i}`)) return `${stem}-${i}`;
+}
+
+/**
+ * Puts the parts in one group. Parts of one group already join it (the others are added to it); otherwise a new
+ * group takes them, and any group they leave behind keeps what is left of it. Null when it changes nothing.
+ */
+export function groupParts(d: HackDraft, ids: string[]): { draft: HackDraft; group: PartGroup } | null {
+  const picked = d.parts.filter((p) => ids.includes(p.id)).map((p) => p.id);
+  const all = groupsOf(d);
+  if (picked.length < 2) return null;
+  const touched = all.filter((g) => g.ids.some((x) => picked.includes(x)));
+  const into = touched.length === 1 ? touched[0] : null;
+  if (into && picked.every((x) => into.ids.includes(x))) return null;
+  if (!into && all.length >= LIMITS.groups) return null;
+  const group: PartGroup = into
+    ? { ...into, ids: [...into.ids, ...picked.filter((x) => !into.ids.includes(x))] }
+    : { id: freeGroupId(d, "group"), name: `Group ${all.length + 1}`.slice(0, LIMITS.groupName), ids: picked };
+  const without = (g: PartGroup) => ({ ...g, ids: g.ids.filter((x) => !picked.includes(x)) });
+  const groups = into ? all.map((g) => (g === into ? group : without(g))) : [...all.map(without), group];
+  return { draft: { ...d, groups: tidy(groups) }, group };
+}
+
+/** Takes the parts out of their groups: a group wholly picked is undone, one partly picked keeps the others. */
+export function ungroupParts(d: HackDraft, ids: string[]): HackDraft | null {
+  const all = groupsOf(d);
+  if (!all.some((g) => g.ids.some((x) => ids.includes(x)))) return null;
+  return { ...d, groups: tidy(all.map((g) => ({ ...g, ids: g.ids.filter((x) => !ids.includes(x)) }))) };
+}
+
+export function renameGroup(d: HackDraft, id: string, name: string): HackDraft {
+  return { ...d, groups: groupsOf(d).map((g) => (g.id === id ? { ...g, name: name.slice(0, LIMITS.groupName) } : g)) };
 }
 
 /** Where a piece is: the middle of its footprint, its height off the floor. */
@@ -336,7 +395,17 @@ export function duplicateParts(d: HackDraft, ids: string[]): { draft: HackDraft;
       if (at >= 0) next = setPartStep(next, id, at);
       made.push(id);
     }
-    if (inBounds(next.parts)) return { draft: next, ids: made };
+    if (inBounds(next.parts)) {
+      // a group copied whole is a group of its own; parts copied from part of one are loose
+      const copies = new Map(picked.map((p, i) => [p.id, made[i]]));
+      let groups = groupsOf(d);
+      for (const g of groups.filter((x) => x.ids.every((id) => copies.has(id)))) {
+        if (groups.length >= LIMITS.groups) break;
+        groups = [...groups, { id: freeGroupId({ ...next, groups }, g.id.replace(/-\d+$/, "")), name: g.name, ids: g.ids.map((id) => copies.get(id)!) }];
+      }
+      next = { ...next, groups };
+      return { draft: next, ids: made };
+    }
   }
   return null;
 }

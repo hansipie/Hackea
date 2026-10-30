@@ -25,6 +25,8 @@ export interface Readout {
 export interface ViewportHandlers {
   /** a click: the part under the pointer (or none), and whether it adds to the selection */
   onPick?: (id: string | null, additive: boolean) => void;
+  /** the parts that go with this one (its group), itself included */
+  group?: (id: string) => string[];
   /** a drag of parts ended: they move by this much (mm) */
   onMove?: (ids: string[], by: Vec3) => void;
   /** a drag of a face handle ended: the part has this size and centre */
@@ -498,7 +500,8 @@ export class Viewport {
       if (!this.selected.has(id)) {
         this.h.onPick?.(id, e.ctrlKey || e.metaKey);
         pickedOnDown = true;
-        this.selected = e.ctrlKey || e.metaKey ? new Set([...this.selected, id]) : new Set([id]);
+        const mates = this.h.group?.(id) ?? [id];
+        this.selected = e.ctrlKey || e.metaKey ? new Set([...this.selected, ...mates]) : new Set(mates);
       }
       const ids = this.selectedParts().map((p) => p.id);
       const item = this.items.get(id)!;

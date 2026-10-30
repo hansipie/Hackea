@@ -1,7 +1,7 @@
 "use client";
 
 import type { CustomPart, Vec3 } from "@/lib/types";
-import { LIMITS, MATERIALS } from "@/lib/hacks/draft";
+import { LIMITS, MATERIALS, type PartGroup } from "@/lib/hacks/draft";
 import { ITrash } from "../../art/Icons";
 import { Num, Pick, Text, Vec } from "../fields";
 
@@ -19,10 +19,64 @@ interface Props {
   onTurnTo: (id: string, rot: Vec3) => void;
   onMoveBy: (ids: string[], by: Vec3) => void;
   onDelete: () => void;
+  /** the groups the selection touches, and what can be done with them */
+  groups: PartGroup[];
+  all: CustomPart[];
+  canGroup: boolean;
+  onGroup: () => void;
+  onUngroup: () => void;
+  onRename: (group: string, name: string) => void;
+  onSelect: (ids: string[]) => void;
+}
+
+/** Groups: its name and parts when the selection is one whole, and the ways in and out of it. */
+function Grouping({ selected, groups, all, canGroup, onGroup, onUngroup, onRename, onSelect }: Props) {
+  const ids = new Set(selected.map((p) => p.id));
+  const whole = groups.length === 1 && groups[0].ids.every((x) => ids.has(x)) ? groups[0] : null;
+  const names = new Map(all.map((p) => [p.id, p.name]));
+  if (!groups.length && !canGroup) return null;
+  return (
+    <div className="wk-group-box">
+      {whole && <Text label="Group name" value={whole.name} max={LIMITS.groupName} required onChange={(name) => onRename(whole.id, name)} />}
+      {groups.length === 1 && !whole && (
+        <p className="hx-hint">
+          In the group <b>{groups[0].name}</b>.{" "}
+          <button type="button" className="btn link inline" onClick={() => onSelect(groups[0].ids)}>
+            Select all {groups[0].ids.length}
+          </button>
+        </p>
+      )}
+      {groups.length > 1 && <p className="hx-hint">Touches {groups.length} groups.</p>}
+      {whole && (
+        <ul className="wk-hits" aria-label="Parts of the group">
+          {whole.ids.map((x) => (
+            <li key={x} className="wk-hit">
+              <button type="button" className="btn link inline" onClick={() => onSelect([x])}>
+                {names.get(x) ?? x}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="hx-actions">
+        {canGroup && (
+          <button type="button" className="btn ghost hx-btn" onClick={onGroup}>
+            {groups.length === 1 ? "Add to the group" : "Group them"}
+          </button>
+        )}
+        {groups.length > 0 && (
+          <button type="button" className="btn ghost hx-btn" onClick={onUngroup}>
+            {whole || groups.length > 1 ? "Ungroup" : "Take out of the group"}
+          </button>
+        )}
+      </div>
+    </div>
+  );
 }
 
 /** The selected part's numbers: where it is, how big, how it is turned, what it is made of. */
-export default function Inspector({ selected, onPatch, onSize, onTurnTo, onMoveBy, onDelete }: Props) {
+export default function Inspector(props: Props) {
+  const { selected, onPatch, onSize, onTurnTo, onMoveBy, onDelete } = props;
   if (!selected.length) return <p className="hx-hint wk-empty">Nothing selected. Click a part in the view to change it, or add one from the library.</p>;
   if (selected.length > 1)
     return (
@@ -30,6 +84,7 @@ export default function Inspector({ selected, onPatch, onSize, onTurnTo, onMoveB
         <p>
           <b>{selected.length} parts selected.</b> Drag them together, or nudge them here (mm).
         </p>
+        <Grouping {...props} />
         <Vec legend="Move all by" value={[0, 0, 0]} min={-LIMITS.pos} max={LIMITS.pos} names={POS} onChange={(by) => onMoveBy(selected.map((p) => p.id), by)} />
         <button type="button" className="btn ghost hx-btn danger" onClick={onDelete}>
           <ITrash size={17} /> Delete them
@@ -40,6 +95,7 @@ export default function Inspector({ selected, onPatch, onSize, onTurnTo, onMoveB
   const rot = (p.rot ?? [0, 0, 0]).map((r) => round(r * DEG)) as Vec3;
   return (
     <div className="wk-pane">
+      <Grouping {...props} />
       <Text label="Name" value={p.name} max={LIMITS.partName} required onChange={(name) => onPatch(p.id, { name })} />
       <Text label="Letter" value={p.label ?? ""} max={LIMITS.label} onChange={(label) => onPatch(p.id, { label: label || undefined })} hint="Up to three characters, as the guide labels it." />
       <div className="hx-row2">

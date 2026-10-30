@@ -133,13 +133,15 @@ export default function Workspace({ id, initial, repaired, savedExport }: { id: 
 
   const pick = (pid: string | null, additive: boolean) => {
     if (!pid) return additive ? undefined : setSelection([]);
-    setSelection((s) => (additive ? (s.includes(pid) ? s.filter((x) => x !== pid) : [...s, pid]) : [pid]));
+    // a part of a group brings the whole group; the Part tab can pick one part of it alone
+    const mates = E.withGroup(draft, pid);
+    setSelection((s) => (additive ? (mates.every((x) => s.includes(x)) ? s.filter((x) => !mates.includes(x)) : [...s, ...mates.filter((x) => !s.includes(x))]) : mates));
     setTab("part");
   };
   const del = () => {
     if (!selection.length) return;
     // a whole piece from the library goes with its place in "Made from"; single parts just go
-    const whole = E.groupsOf(draft).filter((g) => g.ids.every((x) => selection.includes(x)));
+    const whole = E.piecesOf(draft).filter((g) => g.ids.every((x) => selection.includes(x)));
     apply((d) => E.removeParts(whole.reduce(E.removeGroup, d), selection));
     setSelection([]);
   };
@@ -148,6 +150,17 @@ export default function Workspace({ id, initial, repaired, savedExport }: { id: 
     if (!r) return setNote({ text: ROOM });
     h.set(autoSteps(r.draft));
     setSelection(r.ids);
+  };
+  const groups = useMemo(() => E.groupsOf(draft).filter((g) => g.ids.some((x) => selection.includes(x))), [draft, selection]);
+  const canGroup = selection.length > 1 && !(groups.length === 1 && selection.every((x) => groups[0].ids.includes(x)));
+  const group = () => {
+    const r = E.groupParts(draft, selection);
+    if (r) h.set(r.draft);
+    else setNote({ text: "Select two parts or more to group them." });
+  };
+  const ungroup = () => {
+    const n = E.ungroupParts(draft, selection);
+    if (n) h.set(n);
   };
   const turn = (axis: 0 | 1 | 2, by: number) => selection.length && apply((d) => E.turnParts(d, selection, axis, by), { key: `turn${axis}` });
 
@@ -196,6 +209,10 @@ export default function Workspace({ id, initial, repaired, savedExport }: { id: 
       if (mod && k === "d") {
         e.preventDefault();
         return duplicate();
+      }
+      if (mod && k === "g") {
+        e.preventDefault();
+        return e.shiftKey ? ungroup() : group();
       }
       if (mod && k === "a") {
         e.preventDefault();
@@ -312,6 +329,10 @@ export default function Workspace({ id, initial, repaired, savedExport }: { id: 
         view={view}
         onView={setView}
         hasSelection={selection.length > 0}
+        canGroup={canGroup}
+        canUngroup={groups.length > 0}
+        onGroup={group}
+        onUngroup={ungroup}
         canUndo={h.canUndo}
         canRedo={h.canRedo}
         snap={snap}
@@ -343,6 +364,7 @@ export default function Workspace({ id, initial, repaired, savedExport }: { id: 
               view={view}
               snap={snap}
               onPick={pick}
+              group={(pid) => E.withGroup(draft, pid)}
               onMove={(ids, by) => apply((d) => E.moveParts(d, ids, by), { key: "move" })}
               onResize={(pid, sz, pos) =>
                 apply((d) => {
@@ -399,6 +421,13 @@ export default function Workspace({ id, initial, repaired, savedExport }: { id: 
               onTurnTo={(pid, rot) => apply((d) => E.setRotation(d, pid, rot), { key: `rot:${pid}` })}
               onMoveBy={(ids, by) => apply((d) => E.moveParts(d, ids, by), { key: "move" })}
               onDelete={del}
+              groups={groups}
+              all={draft.parts}
+              canGroup={canGroup}
+              onGroup={group}
+              onUngroup={ungroup}
+              onRename={(gid, name) => h.set(E.renameGroup(draft, gid, name), `group:${gid}`)}
+              onSelect={(ids) => setSelection(ids)}
             />
           )}
           {tab === "details" && <Details draft={draft} set={set} edit={edit} />}
