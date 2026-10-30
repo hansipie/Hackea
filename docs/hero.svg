@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="620" viewBox="0 0 1600 620" role="img" aria-labelledby="t d">
+<title id="t">Hackea</title><desc id="d">An IKEA bookcase drawn apart in 3D like a paper manual, with the parts a hack adds in yellow.</desc>
+<defs><pattern id="g" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" fill="none" stroke="#d9d6ce" stroke-width="1" opacity=".55"/></pattern><radialGradient id="sh" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#121212" stop-opacity=".14"/><stop offset="1" stop-color="#121212" stop-opacity="0"/></radialGradient></defs>
+<rect width="1600" height="620" rx="28" fill="#f5f4f0"/><rect width="1600" height="620" rx="28" fill="url(#g)"/>
+<rect x="1.5" y="1.5" width="1597" height="617" rx="27" fill="none" stroke="#d9d6ce" stroke-width="3"/>
+<ellipse cx="1150" cy="566" rx="300" ry="38" fill="url(#sh)"/>
+<path d="M1091.7 41.6 L1091.7 80.8" stroke="#8a877f" stroke-width="1.6" stroke-dasharray="5 6" fill="none" stroke-linecap="round"/>
+<path d="M1091.7 159.3 L1091.7 176.2" stroke="#8a877f" stroke-width="1.6" stroke-dasharray="5 6" fill="none" stroke-linecap="round"/>
+<path d="M1276.2 148.1 L1276.2 187.4" stroke="#8a877f" stroke-width="1.6" stroke-dasharray="5 6" fill="none" stroke-linecap="round"/>
+<path d="M1276.2 265.9 L1276.2 282.7" stroke="#8a877f" stroke-width="1.6" stroke-dasharray="5 6" fill="none" stroke-linecap="round"/>
+<path d="M1023.8 80.8 L1023.8 120.1" stroke="#8a877f" stroke-width="1.6" stroke-dasharray="5 6" fill="none" stroke-linecap="round"/>
+<path d="M1023.8 198.6 L1023.8 215.4" stroke="#8a877f" stroke-width="1.6" stroke-dasharray="5 6" fill="none" stroke-linecap="round"/>
+<path d="M1208.3 187.4 L1208.3 226.6" stroke="#8a877f" stroke-width="1.6" stroke-dasharray="5 6" fill="none" stroke-linecap="round"/>
+<path d="M1208.3 305.1 L1208.3 321.9" stroke="#8a877f" stroke-width="1.6" stroke-dasharray="5 6" fill="none" stroke-linecap="round"/>
+<path d="M1050.5 337.3 L1050.5 342.9" stroke="#8a877f" stroke-width="1.6" stroke-dasharray="5 6" fill="none" stroke-linecap="round"/>
+<path d="M1001.9 365.4 L1001.9 371.0" stroke="#8a877f" stroke-width="1.6" stroke-dasharray="5 6" fill="none" stroke-linecap="round"/>
+<path d="M1298.1 480.3 L1298.1 485.9" stroke="#8a877f" stroke-width="1.6" stroke-dasharray="5 6" fill="none" stroke-linecap="round"/>
+<path d="M1249.5 508.3 L1249.5 513.9" stroke="#8a877f" stroke-width="1.6" stroke-dasharray="5 6" fill="none" stroke-linecap="round"/>
+<polygon points="1050.5,334.5 1065.0,342.9 1050.5,351.3 1035.9,342.9" fill="#ffe97a" stroke="#121212" stroke-width="3" stroke-linejoin="round"/>
+<polygon points="1035.9,342.9 1050.5,351.3 1050.5,413.0 1035.9,404.6" fill="#ffd21f" stroke="#121212" stroke-width="3" stroke-linejoin="round"/>
+<polygon points="1065.0,342.9 1050.5,351.3 1050.5,413.0 1065.0,404.6" fill="#e0b400" stroke="#121212" stroke-width="3" stroke-linejoin="round"/>
+<polygon points="1057.8,61.2 1062.6,64.0 994.6,103.3 989.8,100.5" fill="#ffffff" stroke="#121212" stroke-width="3" stroke-linejoin="round"/>
+<polygon points="989.8,100.5 994.6,103.3 994.6,372.4 989.8,369.6" fill="#efede7" stroke="#121212" stroke-width="3" stroke-linejoin="round"/>
+<polygon points="1062.6,64.0 994.6,103.3 994.6,372.4 1062.6,333.1" fill="#e2dfd7" stroke="#121212" stroke-width="3" stroke-linejoin="round"/>
+<polygon points="1001.9,362.6 1016.5,371.0 1001.9,379.4 987.4,371.0" fill="#ffe97a" stroke="#121212" stroke-width="3" stroke-linejoin="round"/>
+<polygon points="987.4,371.0 1001.9,379.4 1001.9,441.0 987.4,432.6" fill="#ffd21f" stroke="#121212" stroke-width="3" stroke-linejoin="round"/>
+<polygon points="1016.5,371.0 1001.9,379.4 1001.9,441.0 1016.5,432.6" fill="#e0b400" stroke="#121212" stroke-width="3" stroke-linejoin="round"/>
+<polygon points="1091.7,327.5 1276.2,434.0 1208.3,473.3 1023.8,366.8" fill="#ffffff" stroke="#121212" stroke-width="3" stroke-linejoin="round"/>
+<polygon points="1023.8,366.8 1208.3,473.3 1208.3,478.9 1023.8,372.4" fill="#efede7" stroke="#121212" stroke-width="3" stroke-linejoin="round"/>
+<polygon points="1276.2,434.0 1208.3,473.3 1208.3,478.9 1276.2,439.6" fill="#e2dfd7" stroke="#121212" stroke-width="3" stroke-linejoin="round"/>
+<polygon points="1091.7,249.0 1276.2,355.5 1208.3,394.8 1023.8,288.3" fill="#ffffff" stroke="#121212" stroke-width="3" stroke-linejoin="round"/>
+<polygon points="1023.8,288.3 1208.3,394.8 1208.3,400.4 1023.8,293.9" fill="#efede7" stroke="#121212" stroke-width="3" stroke-linejoin="round"/>
+<polygon points="1276.2,355.5 1208.3,394.8 1208.3,400.4 1276.2,361.2" fill="#e2dfd7" stroke="#121212" stroke-width="3" stroke-linejoin="round"/>
+<polygon points="1091.7,153.7 1276.2,260.2 1208.3,299.5 1023.8,193.0" fill="#ffe97a" stroke="#121212" stroke-width="3" stroke-linejoin="round"/>
+<polygon points="1023.8,193.0 1208.3,299.5 1208.3,305.1 1023.8,198.6" fill="#ffd21f" stroke="#121212" stroke-width="3" stroke-linejoin="round"/>
+<polygon points="1276.2,260.2 1208.3,299.5 1208.3,305.1 1276.2,265.9" fill="#e0b400" stroke="#121212" stroke-width="3" stroke-linejoin="round"/>
+<polygon points="1091.7,36.0 1276.2,142.5 1208.3,181.8 1023.8,75.2" fill="#ffffff" stroke="#121212" stroke-width="3" stroke-linejoin="round"/>
+<polygon points="1023.8,75.2 1208.3,181.8 1208.3,187.4 1023.8,80.8" fill="#efede7" stroke="#121212" stroke-width="3" stroke-linejoin="round"/>
+<polygon points="1276.2,142.5 1208.3,181.8 1208.3,187.4 1276.2,148.1" fill="#e2dfd7" stroke="#121212" stroke-width="3" stroke-linejoin="round"/>
+<polygon points="1298.1,477.5 1312.6,485.9 1298.1,494.3 1283.5,485.9" fill="#ffe97a" stroke="#121212" stroke-width="3" stroke-linejoin="round"/>
+<polygon points="1283.5,485.9 1298.1,494.3 1298.1,556.0 1283.5,547.6" fill="#ffd21f" stroke="#121212" stroke-width="3" stroke-linejoin="round"/>
+<polygon points="1312.6,485.9 1298.1,494.3 1298.1,556.0 1312.6,547.6" fill="#e0b400" stroke="#121212" stroke-width="3" stroke-linejoin="round"/>
+<polygon points="1305.4,204.2 1310.2,207.0 1242.2,246.2 1237.4,243.4" fill="#ffffff" stroke="#121212" stroke-width="3" stroke-linejoin="round"/>
+<polygon points="1237.4,243.4 1242.2,246.2 1242.2,515.3 1237.4,512.5" fill="#efede7" stroke="#121212" stroke-width="3" stroke-linejoin="round"/>
+<polygon points="1310.2,207.0 1242.2,246.2 1242.2,515.3 1310.2,476.1" fill="#e2dfd7" stroke="#121212" stroke-width="3" stroke-linejoin="round"/>
+<polygon points="1249.5,505.5 1264.1,513.9 1249.5,522.3 1235.0,513.9" fill="#ffe97a" stroke="#121212" stroke-width="3" stroke-linejoin="round"/>
+<polygon points="1235.0,513.9 1249.5,522.3 1249.5,584.0 1235.0,575.6" fill="#ffd21f" stroke="#121212" stroke-width="3" stroke-linejoin="round"/>
+<polygon points="1264.1,513.9 1249.5,522.3 1249.5,584.0 1264.1,575.6" fill="#e0b400" stroke="#121212" stroke-width="3" stroke-linejoin="round"/>
+<g transform="translate(96 64) scale(3.4)"><circle cx="16" cy="16" r="15.5" fill="#ffd21f"/><path d="M16 6.2 L24.5 11.1 L24.5 20.9 L16 25.8 L7.5 20.9 L7.5 11.1 Z" fill="#121212" stroke="#121212" stroke-width="2.2" stroke-linejoin="round"/><path d="M16 11.2 L20.2 13.6 L20.2 18.4 L16 20.8 L11.8 18.4 L11.8 13.6 Z" fill="#ffd21f" stroke="#ffd21f" stroke-width="1.4" stroke-linejoin="round"/></g>
+<text x="96" y="338" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="124" font-weight="800" letter-spacing="-4" fill="#121212">Hackea</text>
+<rect x="100" y="360" width="150" height="10" rx="5" fill="#ffd21f"/>
+<text font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="35" font-weight="500" fill="#4a4945"><tspan x="98" y="432">Turn IKEA furniture into</tspan><tspan x="98" y="476">something new.</tspan></text>
+<rect x="98" y="518" width="162" height="46" rx="23" fill="#ffffff" stroke="#121212" stroke-width="2.5"/>
+<text x="179" y="548" text-anchor="middle" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="20" font-weight="600" fill="#121212">Hacks in 3D</text>
+<rect x="274.4" y="518" width="175" height="46" rx="23" fill="#ffffff" stroke="#121212" stroke-width="2.5"/>
+<text x="362" y="548" text-anchor="middle" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="20" font-weight="600" fill="#121212">Step by step</text>
+<rect x="463.2" y="518" width="187" height="46" rx="23" fill="#ffffff" stroke="#121212" stroke-width="2.5"/>
+<text x="557" y="548" text-anchor="middle" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="20" font-weight="600" fill="#121212">Read out loud</text>
+</svg>

@@ -1,4 +1,4 @@
-<h1 align="center">Hackea</h1>
+<p align="center"><img src="docs/hero.png" alt="Hackea: turn IKEA furniture into something new" width="100%"></p>
 
 <p align="center">Turn IKEA furniture into something new. Each hack lists what to buy and what to change, then plays every step in 3D, drawn like the paper manual and read out loud.</p>
 
