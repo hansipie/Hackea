@@ -221,11 +221,8 @@
 
 .hero {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.04fr);
-  gap: 48px;
-  align-items: center;
-  min-height: min(740px, calc(100dvh - 60px));
-  padding: 12px 0 56px;
+  grid-template-columns: minmax(0, 1100px);
+  padding: 12px 0 24px;
 }
 .hero h1 {
   font-family: var(--display);
@@ -667,6 +664,55 @@
 
 /* ================= how ================= */
 
+/* one hack, large: the last one made in this browser */
+.feat {
+  padding: 40px 0 0;
+  scroll-margin-top: 80px;
+}
+.feat-card {
+  margin-top: 18px;
+  background: var(--paper);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-1);
+  overflow: hidden;
+}
+.feat-stage {
+  position: relative;
+  height: min(64vh, 600px);
+  min-height: 340px;
+}
+.feat-canvas {
+  position: absolute !important;
+  inset: 0;
+}
+.feat-cap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 16px 22px 20px;
+  border-top: 1px solid var(--line-2);
+}
+.feat-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.feat-text b {
+  font-family: var(--display);
+  font-size: 24px;
+  font-weight: 800;
+}
+.feat-text span {
+  color: var(--ink-2);
+}
+.feat-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
 .how {
   padding: 48px 0 40px;
   scroll-margin-top: 80px;
