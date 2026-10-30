@@ -52,8 +52,4 @@
 <text font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="35" font-weight="500" fill="#4a4945"><tspan x="98" y="432">Turn IKEA furniture into</tspan><tspan x="98" y="476">something new.</tspan></text>
 <rect x="98" y="518" width="162" height="46" rx="23" fill="#ffffff" stroke="#121212" stroke-width="2.5"/>
 <text x="179" y="548" text-anchor="middle" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="20" font-weight="600" fill="#121212">Hacks in 3D</text>
-<rect x="274.4" y="518" width="175" height="46" rx="23" fill="#ffffff" stroke="#121212" stroke-width="2.5"/>
-<text x="362" y="548" text-anchor="middle" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="20" font-weight="600" fill="#121212">Step by step</text>
-<rect x="463.2" y="518" width="187" height="46" rx="23" fill="#ffffff" stroke="#121212" stroke-width="2.5"/>
-<text x="557" y="548" text-anchor="middle" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="20" font-weight="600" fill="#121212">Read out loud</text>
 </svg>
