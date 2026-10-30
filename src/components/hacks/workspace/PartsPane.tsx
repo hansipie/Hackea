@@ -6,6 +6,7 @@ import { SHAPES, type Place, type ShapePreset } from "@/lib/hacks/edit";
 import { partGaps, searchParts, type PartRow } from "@/lib/part-search";
 import { IHelp, IPlus, ISearch } from "../../art/Icons";
 import { Pick } from "../fields";
+import { PreviewCard, usePreview } from "./HitPreview";
 
 const POPULAR = ["shelf", "leg", "side panel", "door", "drawer front"];
 const PAGE = 30;
@@ -40,6 +41,7 @@ export default function PartsPane({ full, place, onPlace, onAddPart, onAddShape 
   const [q, setQ] = useState("");
   const [help, setHelp] = useState(false);
   const [n, setN] = useState(PAGE);
+  const { tip, on } = usePreview();
 
   useEffect(() => {
     let live = true;
@@ -111,7 +113,7 @@ export default function PartsPane({ full, place, onPlace, onAddPart, onAddShape 
       </p>
       <ul className="wk-hits">
         {shown.map((p) => (
-          <li key={p.key} className="wk-hit">
+          <li key={p.key} className="wk-hit" tabIndex={0} {...on(p.slug, p.ref)}>
             <span className="wk-hit-name">
               <b>{p.name}</b> <span className="hx-hint">{cm(p)} cm, {p.material}</span>
             </span>
@@ -121,6 +123,7 @@ export default function PartsPane({ full, place, onPlace, onAddPart, onAddShape 
           </li>
         ))}
       </ul>
+      <PreviewCard tip={tip} />
       {found.length > shown.length && (
         <button type="button" className="btn link inline" onClick={() => setN(n + PAGE)}>
           Show more parts

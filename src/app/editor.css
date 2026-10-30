@@ -1313,3 +1313,19 @@ a.hx-from-card {
   cursor: pointer;
   font-weight: 600;
 }
+
+/* the picture of a search result, floating beside the library */
+.wk-preview {
+  position: fixed;
+  z-index: 60;
+  pointer-events: none;
+  padding: 6px;
+  background: var(--paper);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r);
+  box-shadow: 0 8px 28px rgb(0 0 0 / 0.18);
+}
+.wk-preview .wk-preview-art {
+  display: block;
+  width: 100%;
+}

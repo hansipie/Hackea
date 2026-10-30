@@ -10,6 +10,7 @@ import { parseSizeText, searchBySize } from "@/lib/dimensions";
 import { IHelp, IPlus, ISearch } from "../../art/Icons";
 import { Pick } from "../fields";
 import PartsPane from "./PartsPane";
+import { PreviewCard, usePreview } from "./HitPreview";
 
 type Tab = "furniture" | "parts" | "fittings";
 
@@ -29,6 +30,7 @@ export default function LibraryPanel({ full, onAddFurniture, onAddPart, onAddSha
   const [place, setPlace] = useState<Place>("beside");
   const [parts, setParts] = useState<string | null>(null);
   const [help, setHelp] = useState(false);
+  const { tip, on } = usePreview();
   // "80x40x100" or "h100 w80": sizes in cm, closest first, instead of a name
   const size = useMemo(() => parseSizeText(q), [q]);
   const sized = useMemo(() => (size ? searchBySize(PRODUCTS, size) : []), [size]);
@@ -84,7 +86,7 @@ export default function LibraryPanel({ full, onAddFurniture, onAddPart, onAddSha
           <ul className="wk-hits">
             {hits.map(({ entry: e }) => (
               <li key={e.slug}>
-                <div className="wk-hit">
+                <div className="wk-hit" tabIndex={0} {...on(e.slug)}>
                   <span className="wk-hit-name">
                     <b>{e.name}</b> {e.variant}
                     {size && <span className="hx-hint"> {e.size.w} w × {e.size.h} h × {e.size.d} d cm</span>}
@@ -101,7 +103,7 @@ export default function LibraryPanel({ full, onAddFurniture, onAddPart, onAddSha
                 {parts === e.slug && (
                   <ul className="wk-hits sub">
                     {libraryParts(e.slug).map((p) => (
-                      <li key={p.ref} className="wk-hit">
+                      <li key={p.ref} className="wk-hit" tabIndex={0} {...on(e.slug, p.ref)}>
                         <span className="wk-hit-name">
                           {p.name} <span className="hx-hint">{p.size.map((n) => Math.round(n)).join(" × ")} mm, {p.qty} in the box</span>
                         </span>
@@ -115,6 +117,7 @@ export default function LibraryPanel({ full, onAddFurniture, onAddPart, onAddSha
               </li>
             ))}
           </ul>
+          <PreviewCard tip={tip} />
         </div>
       )}
 
