@@ -41,7 +41,7 @@ function fit(ctx: CanvasRenderingContext2D, text: string, max: number, size: num
 
 /** The logo mark: an Allen bolt head seen from above. */
 function mark(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number) {
-  ctx.fillStyle = "#121212";
+  ctx.fillStyle = "#ffd21f";
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
   ctx.fill();
@@ -53,10 +53,10 @@ function mark(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number) 
     }
     ctx.closePath();
   };
-  ctx.fillStyle = "#ffd21f";
+  ctx.fillStyle = "#121212";
   hex(r * 0.62);
   ctx.fill();
-  ctx.fillStyle = "#121212";
+  ctx.fillStyle = "#ffd21f";
   hex(r * 0.3);
   ctx.fill();
 }
