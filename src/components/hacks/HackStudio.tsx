@@ -5,11 +5,12 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ID_RE, mineSlug, specToDraft, type HackDraft } from "@/lib/hacks/draft";
 import { parseHackText, sanitizeDraft } from "@/lib/hacks/sanitize";
 import { createHack, deleteHack, exportSaved, isUnreadable, knownSlug, loadStored, storageWorks } from "@/lib/hacks/store";
-import { libraryDraft } from "@/lib/hacks/templates";
+import { blankDraft, libraryDraft } from "@/lib/hacks/templates";
 import type { Place } from "@/lib/hacks/edit";
 import { searchCatalog } from "@/lib/search";
 import { cachedSpec } from "@/lib/store";
 import { useMounted } from "@/lib/useMounted";
+import { isFrom, STARTS, type From } from "./starts";
 import Workspace from "./workspace/Workspace";
 import PhotoHack from "./PhotoHack";
 import MyHacks, { downloadText } from "./MyHacks";
@@ -96,6 +97,14 @@ function Open({ id }: { id: string }) {
 function Start() {
   const router = useRouter();
   const [paste, setPaste] = useState("");
+  const asked = useSearchParams().get("from");
+  const [from, setFrom] = useState<From>(isFrom(asked) ? asked : "furniture");
+  // a link to another starting point while this page is already open (same component, new ?from=)
+  const [seen, setSeen] = useState(asked);
+  if (asked !== seen) {
+    setSeen(asked);
+    if (isFrom(asked)) setFrom(asked);
+  }
   const [q, setQ] = useState("");
   const [picks, setPicks] = useState<{ slug: string; name: string; qty: number }[]>([]);
   const [at, setAt] = useState<Place>("beside");
@@ -144,6 +153,28 @@ function Start() {
         </p>
       )}
 
+      <section aria-labelledby="hx-from-h">
+        <h2 id="hx-from-h" className="hx-h2">
+          Where do you start?
+        </h2>
+        <ul className="hx-from">
+          {STARTS.map((o) => (
+            <li key={o.id}>
+              <button
+                type="button"
+                className={"hx-from-card" + (o.id === from ? " on" : "")}
+                aria-pressed={o.id === from}
+                onClick={() => (o.id === "empty" ? begin(blankDraft()) : setFrom(o.id))}
+              >
+                <b>{o.title}</b>
+                <span>{o.text}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      {from === "furniture" && (
       <section aria-labelledby="hx-lib-h" className="hx-lib">
         <h2 id="hx-lib-h" className="hx-h2">
           Start from the library
@@ -212,13 +243,15 @@ function Start() {
             None of these could be placed. Try fewer pieces, or start from one.
           </p>
         )}
-        <p className="hx-hint">Or start from a photo of a hack, or from one of your saved builds. You can add library pieces to any of them in the editor.</p>
+        <p className="hx-hint">You can add more library pieces, or boards, in the workspace at any time.</p>
       </section>
+      )}
 
-      <PhotoHack />
+      {from === "photo" && <PhotoHack />}
 
       <MyHacks />
 
+      {from === "json" && (
       <section aria-labelledby="hx-import-h" className="hx-import">
         <h2 id="hx-import-h" className="hx-h2">
           Import a hack
@@ -268,7 +301,7 @@ function Start() {
           </div>
         )}
       </section>
-
+      )}
     </div>
   );
 }
