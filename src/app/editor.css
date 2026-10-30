@@ -259,6 +259,9 @@
   height: 46px;
   font-size: 15px;
 }
+.hx-form {
+  scroll-margin-top: 80px;
+}
 .hx-from {
   list-style: none;
   padding: 0;
@@ -1290,4 +1293,15 @@ a.hx-from-card {
   background: var(--ink);
   color: var(--paper);
   border-color: var(--ink);
+}
+
+.hx-imported {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  margin-top: 14px;
+}
+.hx-imported > span {
+  flex: 1 1 14rem;
 }

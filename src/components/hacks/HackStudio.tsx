@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ID_RE, mineSlug, specToDraft, type HackDraft } from "@/lib/hacks/draft";
 import { parseHackText, sanitizeDraft } from "@/lib/hacks/sanitize";
@@ -105,24 +105,35 @@ function Start() {
     setSeen(asked);
     if (isFrom(asked)) setFrom(asked);
   }
+  // arriving from a link to one starting point (the home page): its form is what you see first
+  const form = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (isFrom(asked)) form.current?.scrollIntoView({ block: "start" });
+  }, [asked]);
   const [q, setQ] = useState("");
   const [picks, setPicks] = useState<{ slug: string; name: string; qty: number }[]>([]);
   const [at, setAt] = useState<Place>("beside");
   const [noRoom, setNoRoom] = useState(false);
   const hits = useMemo(() => (q.trim().length >= 2 ? searchCatalog(q, 6) : []), [q]);
   const [errors, setErrors] = useState<string[]>([]);
+  // an import is saved first, then offered in the 3D editor: you choose when to open it
+  const [imported, setImported] = useState<{ id: string; name: string } | null>(null);
   // a refused file that can still be read with repairs: blanks filled, numbers clamped
   const [fixable, setFixable] = useState<HackDraft | null>(null);
   const persistent = useMemo(() => storageWorks(), []);
   const begin = (d: HackDraft) => router.push(`/hacks/new?id=${createHack(d)}`);
+  const keep = (d: HackDraft) => {
+    setErrors([]);
+    setFixable(null);
+    setImported({ id: createHack(d), name: d.name });
+  };
   const importText = (text: string) => {
     const r = parseHackText(text, knownSlug);
     if (r.draft) {
-      setErrors([]);
-      setFixable(null);
-      begin(r.draft);
+      keep(r.draft);
       return;
     }
+    setImported(null);
     setErrors(r.errors);
     let raw: unknown = null;
     try {
@@ -174,6 +185,7 @@ function Start() {
         </ul>
       </section>
 
+      <div ref={form} className="hx-form">
       {from === "furniture" && (
       <section aria-labelledby="hx-lib-h" className="hx-lib">
         <h2 id="hx-lib-h" className="hx-h2">
@@ -249,8 +261,6 @@ function Start() {
 
       {from === "photo" && <PhotoHack />}
 
-      <MyHacks />
-
       {from === "json" && (
       <section aria-labelledby="hx-import-h" className="hx-import">
         <h2 id="hx-import-h" className="hx-h2">
@@ -282,6 +292,14 @@ function Start() {
         <button type="button" className="btn ghost hx-btn" disabled={!paste.trim()} onClick={() => importText(paste)}>
           Import the pasted JSON
         </button>
+        {imported && (
+          <div className="callout hx-imported" role="status">
+            <span>{`"${imported.name}" is imported and saved in this browser.`}</span>
+            <button type="button" className="btn primary hx-btn" onClick={() => router.push(`/hacks/new?id=${imported.id}`)}>
+              Open in the 3D editor
+            </button>
+          </div>
+        )}
         {errors.length > 0 && (
           <div className="hx-issues" role="alert">
             <p>
@@ -294,7 +312,7 @@ function Start() {
               {errors.length > 10 && <li>and {errors.length - 10} more</li>}
             </ul>
             {fixable && (
-              <button type="button" className="btn ghost hx-btn" onClick={() => begin(fixable)}>
+              <button type="button" className="btn ghost hx-btn" onClick={() => keep(fixable)}>
                 Import it anyway, with these fixed
               </button>
             )}
@@ -302,6 +320,9 @@ function Start() {
         )}
       </section>
       )}
+      </div>
+
+      <MyHacks />
     </div>
   );
 }

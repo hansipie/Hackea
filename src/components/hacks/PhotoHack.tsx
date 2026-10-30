@@ -50,6 +50,7 @@ export default function PhotoHack() {
   const [busy, setBusy] = useState<"photo" | "analyze" | "generate" | null>(null);
   const [error, setError] = useState("");
   const [askKey, setAskKey] = useState(false);
+  const [made, setMade] = useState<string | null>(null);
   const controller = useRef<AbortController | null>(null);
   const photoVersion = useRef(0);
   useEffect(() => () => { controller.current?.abort(); photoVersion.current++; }, []);
@@ -58,7 +59,7 @@ export default function PhotoHack() {
     if (!key) { setAskKey(true); return; }
     controller.current?.abort();
     const current = new AbortController(); controller.current = current;
-    setBusy(action); setError("");
+    setBusy(action); setError(""); setMade(null);
     try {
       const res = await fetch("/api/hack-photo", { method: "POST", headers: { "Content-Type": "application/json", ...keyHeaders() },
         body: JSON.stringify({ action, image, hint, ...(action === "generate" ? { selections } : {}) }), signal: current.signal });
@@ -68,8 +69,8 @@ export default function PhotoHack() {
       else {
         const parsed = sanitizeDraft(data.draft, knownSlug);
         if (!parsed.draft || checkDraft("photohack", parsed.draft).issues.length) throw new Error("invalid_plan");
-        const id = createHack(parsed.draft);
-        router.push(`/build/${mineSlug(id)}`);
+        // saved, then offered in the 3D editor or as the guide: you choose where to look first
+        setMade(createHack(parsed.draft));
       }
     } catch (e) {
       if (!current.signal.aborted) setError((e as Error).message in ERRORS ? (e as Error).message : "failed");
@@ -89,7 +90,7 @@ export default function PhotoHack() {
             <input type="file" className="hx-file-input" accept="image/jpeg,image/png,image/webp" disabled={!!busy} onChange={async e => {
               const file = e.target.files?.[0]; e.target.value = ""; if (!file) return;
               const version = ++photoVersion.current;
-              setError(""); setAnalysis(null); setSelections([]); setImage(""); setBusy("photo");
+              setError(""); setMade(null); setAnalysis(null); setSelections([]); setImage(""); setBusy("photo");
               try { const prepared = await preparePhoto(file); if (version === photoVersion.current) setImage(prepared); }
               catch { if (version === photoVersion.current) setError("photo"); }
               finally { if (version === photoVersion.current) setBusy(null); }
@@ -135,6 +136,13 @@ export default function PhotoHack() {
           <button type="button" className="btn primary" disabled={!valid || !!busy} onClick={() => run("generate")}>
             {busy === "generate" ? "Building your assembly guide..." : "Confirm pieces and generate guide"}
           </button>
+        </div>
+      )}
+      {made && (
+        <div className="callout hx-imported" role="status">
+          <span>Your hack is ready and saved in this browser.</span>
+          <button type="button" className="btn primary" onClick={() => router.push(`/hacks/new?id=${made}`)}>Open in the 3D editor</button>
+          <button type="button" className="btn ghost" onClick={() => router.push(`/build/${mineSlug(made)}`)}>See the build guide</button>
         </div>
       )}
       {busy && <p role="status" aria-live="polite">{busy === "photo" ? "Preparing your photo." : busy === "analyze" ? "Analyzing the hack and searching the catalogue. This can take a minute." : "Placing catalogue parts and checking the proposed assembly. This can take two minutes."}</p>}
