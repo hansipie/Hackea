@@ -99,6 +99,8 @@ export class Viewport {
   private gizmo = new THREE.Group();
   private guides = new THREE.Group();
   private handles: THREE.Object3D[] = [];
+  private axes = makeAxes();
+  private axesCam = new THREE.OrthographicCamera(-1.7, 1.7, 1.7, -1.7, 0.1, 20);
 
   constructor(host: HTMLElement, private h: ViewportHandlers = {}) {
     this.host = host;
@@ -657,7 +659,28 @@ export class Viewport {
       if (this.disposed) return;
       this.placeCamera();
       this.renderer.render(this.scene, this.camera);
+      this.drawAxes();
     });
+  }
+
+  /** The small x, y, z reminder in the top right corner: it turns with the camera. */
+  private drawAxes() {
+    const side = Math.min(AXES_SIZE, this.size.w / 2, this.size.h / 2);
+    const x = this.size.w - side - AXES_GAP;
+    const y = this.size.h - side - AXES_GAP;
+    const cam = this.camera;
+    this.axesCam.quaternion.copy(cam.quaternion);
+    this.axesCam.position.set(0, 0, 8).applyQuaternion(cam.quaternion);
+    const r = this.renderer;
+    r.autoClear = false;
+    r.clearDepth();
+    r.setScissorTest(true);
+    r.setViewport(x, y, side, side);
+    r.setScissor(x, y, side, side);
+    r.render(this.axes, this.axesCam);
+    r.setScissorTest(false);
+    r.setViewport(0, 0, this.size.w, this.size.h);
+    r.autoClear = true;
   }
 
   dispose() {
@@ -671,9 +694,56 @@ export class Viewport {
       l.geometry?.dispose();
       (l.material as THREE.Material | undefined)?.dispose();
     });
+    this.axes.traverse((o) => {
+      const m = o as THREE.Mesh | THREE.Sprite;
+      (m as THREE.Mesh).geometry?.dispose();
+      const mat = m.material as (THREE.Material & { map?: THREE.Texture | null }) | undefined;
+      mat?.map?.dispose();
+      mat?.dispose();
+    });
     this.renderer.dispose();
     this.renderer.domElement.remove();
   }
+}
+
+const AXES_SIZE = 96;
+const AXES_GAP = 10;
+
+/** Three arrows (x red, y green, z blue, as in most editors) with a letter at each tip. Units are not mm here: it is an icon. */
+function makeAxes(): THREE.Scene {
+  const scene = new THREE.Scene();
+  const defs: { name: string; color: number; dir: THREE.Vector3 }[] = [
+    { name: "X", color: 0xd64545, dir: new THREE.Vector3(1, 0, 0) },
+    { name: "Y", color: 0x3a9a4f, dir: new THREE.Vector3(0, 1, 0) },
+    { name: "Z", color: 0x3b6fd6, dir: new THREE.Vector3(0, 0, 1) },
+  ];
+  const up = new THREE.Vector3(0, 1, 0);
+  for (const d of defs) {
+    const mat = new THREE.MeshBasicMaterial({ color: d.color });
+    const q = new THREE.Quaternion().setFromUnitVectors(up, d.dir);
+    const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.8, 8), mat);
+    rod.position.copy(d.dir).multiplyScalar(0.4);
+    rod.quaternion.copy(q);
+    const tip = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.25, 12), mat);
+    tip.position.copy(d.dir).multiplyScalar(0.92);
+    tip.quaternion.copy(q);
+    const c = document.createElement("canvas");
+    c.width = c.height = 64;
+    const g = c.getContext("2d");
+    if (g) {
+      g.fillStyle = "#" + d.color.toString(16).padStart(6, "0");
+      g.font = "bold 46px system-ui, sans-serif";
+      g.textAlign = "center";
+      g.textBaseline = "middle";
+      g.fillText(d.name, 32, 36);
+    }
+    const label = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), depthTest: false, transparent: true }));
+    label.position.copy(d.dir).multiplyScalar(1.3);
+    label.scale.setScalar(0.5);
+    label.renderOrder = 2;
+    scene.add(rod, tip, label);
+  }
+  return scene;
 }
 
 /** What a part's shape depends on: when it changes the geometry is rebuilt, otherwise only moved. */
