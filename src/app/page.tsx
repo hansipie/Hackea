@@ -4,7 +4,8 @@ import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import HeroStart from "@/components/home/HeroStart";
 import FeaturedHack from "@/components/home/FeaturedHack";
-import { IArrowOut, IScan } from "@/components/art/Icons";
+import HackCards from "@/components/home/HackCards";
+import { IArrowOut, IArrowRight, IScan } from "@/components/art/Icons";
 import { SCAN_ENABLED } from "@/lib/site";
 
 export const metadata: Metadata = { alternates: { canonical: "/" } };
@@ -45,6 +46,16 @@ export default function Home() {
       </section>
 
       <FeaturedHack />
+
+      <section className="popular" id="hacks">
+        <div className="sec-head">
+          <h2 className="sec-title">Hacks</h2>
+          <Link href="/hacks" className="sec-link">
+            All hacks <IArrowRight size={15} />
+          </Link>
+        </div>
+        <HackCards limit={3} />
+      </section>
 
       <SiteFooter />
     </div>
