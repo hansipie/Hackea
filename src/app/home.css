@@ -1488,7 +1488,7 @@
   align-items: flex-end;
   gap: 28px;
   margin: 0 -48px;
-  padding: 30px 48px 0;
+  padding: 30px 48px 32px;
   border-top: 1px solid var(--line);
   background: linear-gradient(180deg, #fff, #faf9f6);
 }
@@ -1587,7 +1587,7 @@
   .foot-credit {
     gap: 16px;
     margin: 0 -24px;
-    padding: 22px 20px 0;
+    padding: 22px 20px 24px;
   }
   .foot-crew {
     width: auto;
