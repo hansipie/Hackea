@@ -2,6 +2,12 @@
 
 All notable changes to Hackea. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.2.0] - 2026-10-30
+
+### Added
+
+- Library search in the editor: hovering a result, in Furniture or Parts, shows a line drawing of the piece or part.
+
 ## [0.1.0] - 2026-10-30
 
 First release, built on [Bygga](https://github.com/Nutlope/bygga) (MIT). See [NOTICE](NOTICE).
@@ -25,4 +31,5 @@ First release, built on [Bygga](https://github.com/Nutlope/bygga) (MIT). See [NO
 - The logo colors are inverted.
 - Beds, sofas, chairs, stools, hat and coat stands, clothes stands and outdoor benches are left out of the catalog.
 
+[0.2.0]: https://github.com/hansipie/Hackea/releases/tag/v0.2.0
 [0.1.0]: https://github.com/hansipie/Hackea/releases/tag/v0.1.0
