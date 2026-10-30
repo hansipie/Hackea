@@ -16,11 +16,13 @@ Hacks resolve through `catalogSpec()` in `src/lib/catalog.ts`, so they work on e
 
 ### Making your own: the hack editor
 
-`/hacks/new` ("Make one") lets anyone design a piece of furniture from the library without writing code. Pick one or several pieces (side by side or stacked), or single parts of them, and each arrives as the parts it is made of, converted from the same generated plans as the library pages (`src/lib/hacks/library.ts`). Then move a piece, take it out, edit any part, add boards, and set the build order and fittings if you want them. A KALLAX grid, BILLY bookcases, a blank board or a copy of a curated hack are other ways in. The 3D preview is the guide's own engine and stage, rebuilt a moment after each change, and the same checks as `hacks:check` (`src/lib/hacks/check.ts`) list what to fix, with the size always worked out from the parts.
+`/hacks/new` ("Make one") lets anyone design a piece of furniture from the library without writing code, in a 3D workspace (`src/components/hacks/workspace`). Pick one or several pieces (side by side or stacked), or single parts of them, found by name or by size, and each arrives as the parts it is made of, converted from the same generated plans as the library pages (`src/lib/hacks/library.ts`). Then drag, resize or turn parts, edit any of them, and add boards and blocks. A KALLAX grid, BILLY bookcases, a blank board or a copy of a curated hack are other ways in. The assembly steps are worked out from where the parts are (`src/lib/hacks/autosteps.ts`), the 3D preview is the guide's own engine and stage, and the same checks as `hacks:check` (`src/lib/hacks/check.ts`) list what to fix, with the size always worked out from the parts.
+
+Parts can be grouped. A piece of furniture added from the library is one group by default: clicking a part selects the whole group, and moving, turning, copying and deleting act on all of it. Select parts and press Ctrl+G to group them (with a group selected, the same button adds the others to it), Ctrl+Shift+G to ungroup or to take the selected parts out of their group. The Part tab names a group and lists its parts, each of which can be picked alone. Groups are an editor feature only: they are saved with the hack and its export, but the guide and the steps do not depend on them.
 
 - No server, no accounts: hacks are saved in the browser's localStorage (`src/lib/hacks/store.ts`), or kept for the tab when storage is blocked. They can be duplicated, deleted, exported and imported as `.hackea.json` files, or shared as a link that carries the whole hack in its hash (`/build/mine-<id>#h=...`).
 - They open at `/build/mine-<id>` in the normal guide, marked "Yours, unverified", with the safety note that dimensions are approximate and must be measured before drilling or cutting.
-- Anything from outside (a file, a pasted JSON, a link, even this browser's own storage) goes through `src/lib/hacks/sanitize.ts`: known fields only, strict types, numeric bounds, at most 120 parts and 40 steps, length limits on every text, and product links only to products the catalog has. Nothing from it is rendered as HTML.
+- Anything from outside (a file, a pasted JSON, a link, even this browser's own storage) goes through `src/lib/hacks/sanitize.ts`: known fields only, strict types, numeric bounds, at most 120 parts, 60 groups and 40 steps, length limits on every text, and product links only to products the catalog has. Nothing from it is rendered as HTML.
 - To turn a hack made in the editor into a curated one, check its exported file with `npm run hacks:validate -- file.hackea.json`, then write it in `src/data/hacks/`.
 
 ## Tech stack
@@ -47,6 +49,10 @@ Set `NEXT_PUBLIC_SITE_URL` in production (share cards and the sitemap use it) an
 - [ ] a French interface and voice (today everything is English)
 - [ ] replace the remaining Bygga artwork (home page comparison, share card images)
 - [x] an editor to combine pieces without writing a hack by hand (`/hacks/new`)
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 
