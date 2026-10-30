@@ -4,6 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import { articleNo, articlesReady, loadArticles, searchCatalog, slugify, matchCatalog } from "@/lib/search";
+import { PRODUCTS } from "@/lib/catalog";
+import { parseSizeText, searchBySize, sizeParams } from "@/lib/dimensions";
 import Drawing from "../Drawing";
 import { keyHeaders } from "@/lib/userKey";
 import { IArrowRight, ICamera, ISearch, ISparkle } from "../art/Icons";
@@ -62,15 +64,26 @@ export default function Search({ ai, autoFocus }: { ai: boolean; autoFocus?: boo
   useEffect(() => {
     if (digits && !articles) loadArticles().then(() => setArticles(true));
   }, [digits, articles]);
-  const hits = useMemo(() => (q.trim() ? searchCatalog(q, 6) : []), [q, articles]); // eslint-disable-line react-hooks/exhaustive-deps
-  const exact = useMemo(() => (q.trim() ? matchCatalog(q) : null), [q, articles]); // eslint-disable-line react-hooks/exhaustive-deps
-  const showAi = q.trim().length >= 2 && !exact;
-  const rows = hits.length + (showAi ? 1 : 0);
+  // "80x40x100" or "h100 w80": sizes, not a name, so the suggestions are the pieces of about that size
+  const size = useMemo(() => parseSizeText(q), [q]);
+  const sized = useMemo(() => (size ? searchBySize(PRODUCTS, size) : []), [size]);
+  const hits = useMemo(
+    () => (size ? sized.slice(0, 6) : q.trim() ? searchCatalog(q, 6) : []),
+    [q, articles, size, sized], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+  const exact = useMemo(() => (q.trim() && !size ? matchCatalog(q) : null), [q, articles, size]); // eslint-disable-line react-hooks/exhaustive-deps
+  const showAi = q.trim().length >= 2 && !exact && !size;
+  const rows = hits.length + (showAi || size ? 1 : 0);
 
   async function go(target?: string) {
     const text = (target ?? q).trim();
     if (!text) {
       input.current?.focus();
+      return;
+    }
+    const sizes = target === undefined ? parseSizeText(text) : null;
+    if (sizes) {
+      router.push(`/size?${sizeParams(sizes)}`);
       return;
     }
     if (articleNo(text)) await loadArticles().catch(() => {});
@@ -186,6 +199,18 @@ export default function Search({ ai, autoFocus }: { ai: boolean; autoFocus?: boo
             {hits.map((h, i) => (
               <SuggestRow key={h.entry.slug} slug={h.entry.slug} name={h.entry.name} variant={h.entry.variant} minutes={h.entry.minutes} active={i === sel} onPick={() => choose(i)} onHover={() => setSel(i)} />
             ))}
+            {size && (
+              <li role="option" aria-selected={sel === hits.length} className={"suggest-row ai" + (sel === hits.length ? " active" : "")} onMouseDown={(e) => e.preventDefault()} onClick={() => go()} onMouseEnter={() => setSel(hits.length)}>
+                <span className="s-ai">
+                  <ISearch size={22} />
+                </span>
+                <span className="s-text">
+                  <b>{sized.length ? `See all ${sized.length.toLocaleString("en-US")} matching sizes` : "Nothing is that size"}</b>
+                  <span>{sized.length ? "Closest first, with room to adjust" : "Widen the search by size"}</span>
+                </span>
+                <IArrowRight size={18} />
+              </li>
+            )}
             {showAi && (
               <li role="option" aria-selected={sel === hits.length} className={"suggest-row ai" + (sel === hits.length ? " active" : "")} onMouseDown={(e) => e.preventDefault()} onClick={() => go()} onMouseEnter={() => setSel(hits.length)}>
                 <span className="s-ai">

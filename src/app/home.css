@@ -2638,3 +2638,65 @@ th[aria-sort="descending"] .lib-sort span {
   text-decoration-thickness: 1.5px;
   text-underline-offset: 3px;
 }
+
+.size-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 12px 16px;
+  margin-bottom: 18px;
+}
+.size-field {
+  display: grid;
+  gap: 4px;
+  font-size: 0.9rem;
+}
+.size-field input,
+.size-field select {
+  width: 8.5rem;
+  padding: 10px 12px;
+  font: inherit;
+}
+.size-mode {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+.size-hint {
+  margin: 0 0 14px;
+  opacity: 0.75;
+}
+
+.size-link {
+  display: inline-block;
+  margin: 8px 0 0;
+  font-size: 0.9rem;
+  text-decoration: underline;
+}
+
+.cat-help {
+  margin: 8px 0 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--sunk);
+  font-size: 0.9rem;
+}
+.cat-help p {
+  margin: 0 0 6px;
+}
+.cat-help p:last-child {
+  margin: 0;
+}
+.cat-help button {
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}

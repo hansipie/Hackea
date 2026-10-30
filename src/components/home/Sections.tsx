@@ -5,13 +5,14 @@ import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
 import { POPULAR, articleNo, fold, kindOf, loadArticles, searchCatalog, searchText, slugify } from "@/lib/search";
 import { articleSlug } from "@/lib/ikea";
+import { parseSizeText, searchBySize, sizeParams } from "@/lib/dimensions";
 import { PRODUCTS, type CatalogEntry } from "@/lib/catalog";
 import { KIND_ARCH, type Kind } from "@/lib/products";
 import type { Archetype } from "@/lib/types";
 import Drawing from "../Drawing";
 import { useUserKey } from "@/lib/userKey";
 import { Dots } from "../guide/ui";
-import { IArrowRight, IClock, IClose, ISearch } from "../art/Icons";
+import { IArrowRight, IClock, IClose, IHelp, ISearch } from "../art/Icons";
 
 /** Tabs over the kinds of furniture. Kids and Outdoor cut across them, by keyword. */
 export const CATS: { id: string; label: string; kinds?: Kind[]; tag?: string }[] = [
@@ -82,6 +83,8 @@ export function Catalog({ limit, search }: { limit?: number; search?: boolean })
   const [more, setMore] = useState({ view: "", n: PAGE });
   const [articles, setArticles] = useState(false);
   const no = search ? articleNo(q) : null;
+  const sizeQuery = search ? parseSizeText(q) : null;
+  const [help, setHelp] = useState(false);
 
   useEffect(() => {
     if (no && !articles) loadArticles().then(() => setArticles(true));
@@ -93,7 +96,12 @@ export function Catalog({ limit, search }: { limit?: number; search?: boolean })
     let l = c.kinds || c.tag ? PRODUCTS.filter((e) => inCat(e, c)) : limit ? POPULAR : PRODUCTS;
     const f = fold(q);
     let ranked = false;
-    if (no) {
+    // "80x40x100" or "h100 w80": sizes in cm, closest first (the tab still narrows it)
+    const size = search ? parseSizeText(q) : null;
+    if (size) {
+      l = searchBySize(l, size).map((r) => r.entry);
+      ranked = true;
+    } else if (no) {
       const slug = articles ? articleSlug(no) : null;
       l = l.filter((e) => e.slug === slug);
     } else if (f) {
@@ -114,7 +122,7 @@ export function Catalog({ limit, search }: { limit?: number; search?: boolean })
     }
     if (!limit && !ranked) l = [...l].sort((a, b) => a.name.localeCompare(b.name, "sv") || a.variant.localeCompare(b.variant, "sv"));
     return limit ? l.slice(0, limit) : l;
-  }, [cat, q, limit, no, articles]);
+  }, [cat, q, limit, no, articles, search]);
 
   const view = cat + "|" + q;
   const n = limit ? list.length : more.view === view ? more.n : PAGE;
@@ -126,13 +134,29 @@ export function Catalog({ limit, search }: { limit?: number; search?: boolean })
         {search && (
           <label className="cat-search">
             <ISearch size={20} />
-            <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Name or article number" aria-label="Filter by name or article number" enterKeyHint="search" autoComplete="off" spellCheck={false} />
+            <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Name, article number or size (80x40x100)" aria-label="Filter by name, article number or size in centimetres" enterKeyHint="search" autoComplete="off" spellCheck={false} />
             {q && (
               <button type="button" className="cat-clear" onClick={() => setQ("")} aria-label="Clear filter">
                 <IClose size={16} />
               </button>
             )}
+            <button type="button" className="cat-clear" onClick={() => setHelp(!help)} aria-label="How to search" aria-expanded={help} aria-controls="cat-help">
+              <IHelp size={16} />
+            </button>
           </label>
+        )}
+        {help && (
+          <div id="cat-help" className="cat-help">
+            <p><b>Search by name</b> or article number: <button type="button" onClick={() => setQ("kallax")}>kallax</button>, <button type="button" onClick={() => setQ("802.456.78")}>802.456.78</button>.</p>
+            <p><b>Search by size</b> in centimetres, in any order: <button type="button" onClick={() => setQ("80x40x100")}>80x40x100</button> or <button type="button" onClick={() => setQ("80 x 40")}>80 x 40</button>.</p>
+            <p>Or name each size: <button type="button" onClick={() => setQ("h100 w80")}>h100 w80</button>, <button type="button" onClick={() => setQ("height 100, depth 40")}>height 100, depth 40</button>. Use h or height, w or width, d or depth.</p>
+            <p>A single size needs its unit: <button type="button" onClick={() => setQ("100 cm")}>100 cm</button>. Sizes match within 5 cm, closest first.</p>
+          </div>
+        )}
+        {sizeQuery && (
+          <Link href={`/size?${sizeParams(sizeQuery)}`} className="size-link">
+            Fine-tune by size: margin, fit in a space
+          </Link>
         )}
         <div className="cat-tabs" role="tablist">
           {CATS.map((c) => (
