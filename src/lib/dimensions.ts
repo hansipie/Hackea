@@ -131,3 +131,9 @@ export function sizeFromParams(get: (key: string) => string | undefined): SizeQu
   if (any.length) q.any = any.slice(0, 3);
   return q;
 }
+
+/** For a part with no top or front: every size given, labelled or not, matches whichever of its three sizes is closest. */
+export function unorderedSizes(q: SizeQuery): SizeQuery | null {
+  const any = [...AXES.flatMap((a) => (q[a] !== undefined ? [q[a] as number] : [])), ...(q.any ?? [])].slice(0, 3);
+  return any.length ? { any, mode: q.mode, tolerance: q.tolerance } : null;
+}

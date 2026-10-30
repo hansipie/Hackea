@@ -4,6 +4,11 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { fold } from "@/lib/fold";
 import { PART_FILTERS, partGroups } from "@/lib/part-filters";
+import { parseSizeText, searchBySize, unorderedSizes } from "@/lib/dimensions";
+import { IHelp } from "@/components/art/Icons";
+
+/** cm: parts are cut to size, so a size means more here than for a whole piece of furniture */
+const PART_TOLERANCE = 1;
 
 export interface IndividualPartRow {
   key: string;
@@ -34,25 +39,41 @@ export default function IndividualParts({ parts }: { parts: IndividualPartRow[] 
   const [material, setMaterial] = useState("");
   const [category, setCategory] = useState("all");
   const [limit, setLimit] = useState(100);
+  const [help, setHelp] = useState(false);
+  const [chosen, setChosen] = useState(false);
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "name", dir: 1 });
   const materials = useMemo(() => [...new Set(parts.map((p) => p.material))].sort(), [parts]);
   const groups = useMemo(() => new Map(parts.map((p) => [p.key, partGroups(p.names)])), [parts]);
+  // "40x18x2" or "h100 w80": sizes in cm, in any order, closest first until a column is chosen
+  const gaps = useMemo(() => {
+    const q = parseSizeText(query);
+    const size = q && unorderedSizes(q);
+    if (!size) return null;
+    const rows = parts.map((p) => ({ p, size: { w: (p.size[0] ?? 0) / 10, h: (p.size[1] ?? 0) / 10, d: (p.size[2] ?? 0) / 10 } }));
+    return new Map(searchBySize(rows, { ...size, tolerance: PART_TOLERANCE }).map((r) => [r.entry.p.key, r.gap]));
+  }, [parts, query]);
   const matching = useMemo(() => {
+    if (gaps) return parts.filter((p) => gaps.has(p.key) && (!material || material === p.material));
     const words = fold(query).split(" ").filter(Boolean);
     return parts.filter((p) => {
       const text = fold(`${p.names.join(" ")} ${p.size.map((n) => n / 10).join(" ")} ${p.material}`);
       return (!material || material === p.material) && words.every((word) => text.includes(word));
     });
-  }, [parts, query, material]);
+  }, [parts, query, material, gaps]);
   const counts = useMemo(() => new Map(PART_FILTERS.map(({ id }) => [id, id === "all" ? matching.length : matching.filter((p) => groups.get(p.key)?.includes(id)).length])), [matching, groups]);
   const found = useMemo(() => category === "all" ? matching : matching.filter((p) => groups.get(p.key)?.includes(category)), [matching, groups, category]);
-  const sorted = useMemo(() => [...found].sort((a, b) => sort.dir * compareParts(a, b, sort.key) || a.name.localeCompare(b.name, "en") || a.key.localeCompare(b.key)), [found, sort]);
-  const sortBy = (key: SortKey) => { setSort((s) => ({ key, dir: s.key === key && s.dir === 1 ? -1 : 1 })); setLimit(100); };
+  const sorted = useMemo(() => [...found].sort((a, b) => (gaps && !chosen ? (gaps.get(a.key) ?? 0) - (gaps.get(b.key) ?? 0) : sort.dir * compareParts(a, b, sort.key)) || a.name.localeCompare(b.name, "en") || a.key.localeCompare(b.key)), [found, sort, gaps, chosen]);
+  const sortBy = (key: SortKey) => { setChosen(true); setSort((s) => ({ key, dir: s.key === key && s.dir === 1 ? -1 : 1 })); setLimit(100); };
   return (
     <div>
       <div className="individual-filters connections">
         <label>Find a part
-          <input type="search" placeholder="Shelf, leg, panel, dimensions..." value={query} onChange={(e) => { setQuery(e.target.value); setLimit(100); }} />
+          <span className="parts-search">
+          <input type="search" placeholder="Shelf, leg, panel, size (40x18x2)..." value={query} onChange={(e) => { setQuery(e.target.value); setChosen(false); setLimit(100); }} />
+          <button type="button" className="cat-clear" onClick={() => setHelp(!help)} aria-label="How to search" aria-expanded={help} aria-controls="parts-help">
+            <IHelp size={16} />
+          </button>
+        </span>
         </label>
         <label>Material
           <select value={material} onChange={(e) => { setMaterial(e.target.value); setLimit(100); }}>
@@ -61,6 +82,13 @@ export default function IndividualParts({ parts }: { parts: IndividualPartRow[] 
           </select>
         </label>
       </div>
+      {help && (
+        <div id="parts-help" className="cat-help">
+          <p><b>Search by name</b> or material: <button type="button" onClick={() => setQuery("shelf")}>shelf</button>, <button type="button" onClick={() => setQuery("leg")}>leg</button>.</p>
+          <p><b>Search by size</b> in centimetres, in any order: <button type="button" onClick={() => setQuery("40x18x2")}>40x18x2</button> or <button type="button" onClick={() => setQuery("80 x 30")}>80 x 30</button>. A part has no top or front, so each size can match any of its three.</p>
+          <p>A single size needs its unit: <button type="button" onClick={() => setQuery("75 cm")}>75 cm</button>. Sizes match within 1 cm, closest first until you sort a column.</p>
+        </div>
+      )}
       <div className="cat-bar individual-categories">
         <div className="cat-tabs" role="group" aria-label="Filter by individual part type">
           {PART_FILTERS.map((c) => (

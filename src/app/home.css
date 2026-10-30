@@ -2700,3 +2700,13 @@ th[aria-sort="descending"] .lib-sort span {
   text-decoration: underline;
   cursor: pointer;
 }
+
+.parts-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.parts-search input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
