@@ -52,7 +52,7 @@ function Logo() {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 13 }}>
       <Mark size={46} />
-      <span style={{ fontFamily: "Display", fontSize: 40, fontWeight: 800, letterSpacing: "-0.045em", paddingBottom: 4 }}>hackea</span>
+      <span style={{ fontFamily: "Display", fontSize: 40, fontWeight: 800, letterSpacing: "-0.045em", paddingBottom: 4 }}>{"Hac/<ea"}</span>
     </div>
   );
 }

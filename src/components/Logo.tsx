@@ -17,7 +17,7 @@ export function LogoMark({ size = 32, className }: { size?: number; className?: 
 }
 
 export function Wordmark({ className }: { className?: string }) {
-  return <span className={"wordmark " + (className ?? "")}>hackea</span>;
+  return <span className={"wordmark " + (className ?? "")}>{"Hac/<ea"}</span>;
 }
 
 export default function Logo({ href = "/", compact, size = 26 }: { href?: string; compact?: boolean; size?: number }) {

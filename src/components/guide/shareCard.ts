@@ -130,7 +130,7 @@ export async function buildCard(plan: Plan, key: string, stat: string): Promise<
     mark(ctx, 134, 1270, 22);
     ctx.fillStyle = "#121212";
     ctx.font = `800 30px ${display}`;
-    ctx.fillText("hackea", 168, 1281);
+    ctx.fillText("Hac/<ea", 168, 1281);
     ctx.fillStyle = "#8a877f";
     ctx.font = `500 26px ${body}`;
     const host = location.host.replace(/^www\./, "");
